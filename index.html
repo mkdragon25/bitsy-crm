@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitsy CRM - Simple CRM for Small Service Businesses</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Zodiak:wght@400;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #0a0a0f;
+            color: #e8e8ed;
+            overflow-x: hidden;
+        }
+
+        .heading-font {
+            font-family: 'Zodiak', serif;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a24;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a4a5e;
+            border-radius: 4px;
+        }
+
+        /* Animated gradient background */
+        .gradient-bg {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a24 50%, #0f0f1a 100%);
+            position: relative;
+        }
+
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(88, 86, 214, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(255, 103, 103, 0.1) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .glass-card {
+            background: rgba(26, 26, 36, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(232, 232, 237, 0.1);
+            border-radius: 16px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #5856d6 0%, #7b79f5 100%);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(88, 86, 214, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(88, 86, 214, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(232, 232, 237, 0.1);
+            color: #e8e8ed;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(232, 232, 237, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(232, 232, 237, 0.15);
+            border-color: rgba(232, 232, 237, 0.3);
+        }
+
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(88, 86, 214, 0.3);
+        }
+
+        .pricing-card {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .pricing-card:hover {
+            transform: scale(1.03);
+            border-color: rgba(88, 86, 214, 0.5);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: linear-gradient(135deg, #5856d6 0%, #7b79f5 100%);
+            color: white;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(26, 26, 36, 0.8);
+            border: 1px solid rgba(232, 232, 237, 0.1);
+            border-radius: 8px;
+            color: #e8e8ed;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #5856d6;
+            background: rgba(26, 26, 36, 1);
+        }
+
+        .input-field::placeholder {
+            color: rgba(232, 232, 237, 0.4);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .dashboard-sidebar {
+            background: rgba(15, 15, 26, 0.95);
+            border-right: 1px solid rgba(232, 232, 237, 0.1);
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            margin: 4px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(232, 232, 237, 0.7);
+        }
+
+        .nav-item:hover {
+            background: rgba(232, 232, 237, 0.05);
+            color: #e8e8ed;
+        }
+
+        .nav-item.active {
+            background: rgba(88, 86, 214, 0.15);
+            color: #5856d6;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(88, 86, 214, 0.1) 0%, rgba(26, 26, 36, 0.8) 100%);
+            border: 1px solid rgba(88, 86, 214, 0.2);
+        }
+
+        .table-header {
+            background: rgba(15, 15, 26, 0.5);
+            border-bottom: 1px solid rgba(232, 232, 237, 0.1);
+        }
+
+        .table-row {
+            border-bottom: 1px solid rgba(232, 232, 237, 0.05);
+            transition: background 0.2s ease;
+        }
+
+        .table-row:hover {
+            background: rgba(232, 232, 237, 0.02);
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-success {
+            background: rgba(52, 199, 89, 0.15);
+            color: #34c759;
+            border: 1px solid rgba(52, 199, 89, 0.3);
+        }
+
+        .badge-warning {
+            background: rgba(255, 159, 10, 0.15);
+            color: #ff9f0a;
+            border: 1px solid rgba(255, 159, 10, 0.3);
+        }
+
+        .badge-error {
+            background: rgba(255, 69, 58, 0.15);
+            color: #ff453a;
+            border: 1px solid rgba(255, 69, 58, 0.3);
+        }
+
+        .badge-info {
+            background: rgba(88, 86, 214, 0.15);
+            color: #5856d6;
+            border: 1px solid rgba(88, 86, 214, 0.3);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(232, 232, 237, 0.1);
+            border-top: 3px solid #5856d6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, createContext, useContext } = React;
+
+        // Supabase Configuration
+        // REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
+        const SUPABASE_URL = 'https://pzopawdefpsqrbrhzsha.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6b3Bhd2RlZnBzcXJicmh6c2hhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODQwNDIsImV4cCI6MjA4NDI2MDA0Mn0.uft6j_jtpXoIxurcMllBySgwxSFsIxPystJP26jhu_4';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Auth Context
+        const AuthContext = createContext();
+
+        const AuthProvider = ({ children }) => {
+            const [user, setUser] = useState(null);
+            const [organization, setOrganization] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                checkUser();
+                const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+                    if (session?.user) {
+                        setUser(session.user);
+                        loadOrganization(session.user.id);
+                    } else {
+                        setUser(null);
+                        setOrganization(null);
+                    }
+                });
+
+                return () => {
+                    authListener?.subscription?.unsubscribe();
+                };
+            }, []);
+
+            const checkUser = async () => {
+                const { data: { session } } = await supabase.auth.getSession();
+                setUser(session?.user || null);
+                if (session?.user) {
+                    await loadOrganization(session.user.id);
+                }
+                setLoading(false);
+            };
+
+            const loadOrganization = async (userId) => {
+                const { data, error } = await supabase
+                    .from('organizations')
+                    .select('*')
+                    .eq('owner_id', userId)
+                    .single();
+                
+                if (data) setOrganization(data);
+            };
+
+            const signUp = async (email, password, organizationName, plan) => {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            organization_name: organizationName,
+                            plan: plan
+                        }
+                    }
+                });
+
+                if (error) throw error;
+
+                // Create organization
+                if (data.user) {
+                    const { error: orgError } = await supabase
+                        .from('organizations')
+                        .insert({
+                            owner_id: data.user.id,
+                            name: organizationName,
+                            plan: plan,
+                            max_users: plan === 'starter' ? 5 : 10,
+                            max_customers: plan === 'starter' ? 250 : 500
+                        });
+
+                    if (orgError) throw orgError;
+                }
+
+                return data;
+            };
+
+            const signIn = async (email, password) => {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                if (error) throw error;
+                return data;
+            };
+
+            const signOut = async () => {
+                await supabase.auth.signOut();
+                setUser(null);
+                setOrganization(null);
+            };
+
+            return (
+                <AuthContext.Provider value={{ user, organization, loading, signUp, signIn, signOut }}>
+                    {children}
+                </AuthContext.Provider>
+            );
+        };
+
+        const useAuth = () => useContext(AuthContext);
+
+        // Landing Page
+        const LandingPage = () => {
+            const [showAuthModal, setShowAuthModal] = useState(false);
+            const [authMode, setAuthMode] = useState('signin');
+
+            return (
+                <div className="gradient-bg min-h-screen">
+                    {/* Navigation */}
+                    <nav className="relative z-10 px-6 py-6">
+                        <div className="max-w-7xl mx-auto flex justify-between items-center">
+                            <div className="heading-font text-3xl font-bold text-white">
+                                Bitsy<span className="text-[#5856d6]">CRM</span>
+                            </div>
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => { setAuthMode('signin'); setShowAuthModal(true); }}
+                                    className="btn-secondary"
+                                >
+                                    Sign In
+                                </button>
+                                <button 
+                                    onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
+                                    className="btn-primary"
+                                >
+                                    Get Started
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Hero Section */}
+                    <section className="relative z-10 px-6 py-20">
+                        <div className="max-w-6xl mx-auto text-center">
+                            <h1 className="heading-font text-6xl md:text-7xl font-black mb-6 leading-tight">
+                                Small Business.<br/>
+                                <span className="text-[#5856d6]">Big Results.</span>
+                            </h1>
+                            <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
+                                The affordable CRM designed specifically for service businesses with under 50 employees. 
+                                Manage customers, track jobs, and grow your business—without the enterprise price tag.
+                            </p>
+                            <button 
+                                onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
+                                className="btn-primary text-lg"
+                            >
+                                Start Free Trial
+                            </button>
+                            <p className="text-sm text-gray-500 mt-4">No credit card required</p>
+                        </div>
+                    </section>
+
+                    {/* Features */}
+                    <section className="relative z-10 px-6 py-20">
+                        <div className="max-w-6xl mx-auto">
+                            <h2 className="heading-font text-4xl font-bold text-center mb-16">
+                                Everything You Need. Nothing You Don't.
+                            </h2>
+                            <div className="grid md:grid-cols-3 gap-8">
+                                {[
+                                    {
+                                        title: 'Customer Management',
+                                        description: 'Track all your clients in one place with custom fields, tags, and notes.',
+                                        icon: '👥'
+                                    },
+                                    {
+                                        title: 'Job Tracking',
+                                        description: 'Monitor service jobs from start to finish with status updates and assignments.',
+                                        icon: '📋'
+                                    },
+                                    {
+                                        title: 'Team Collaboration',
+                                        description: 'Add your team members and assign tasks to keep everyone aligned.',
+                                        icon: '🤝'
+                                    },
+                                    {
+                                        title: 'Customizable Fields',
+                                        description: 'Adapt Bitsy to your business with custom terminology and data fields.',
+                                        icon: '⚙️'
+                                    },
+                                    {
+                                        title: 'Simple Reporting',
+                                        description: 'Get insights on revenue, completed jobs, and business performance.',
+                                        icon: '📊'
+                                    },
+                                    {
+                                        title: 'Multi-User Access',
+                                        description: 'Secure individual logins for each team member with role-based permissions.',
+                                        icon: '🔐'
+                                    }
+                                ].map((feature, idx) => (
+                                    <div key={idx} className="glass-card p-8 feature-card">
+                                        <div className="text-5xl mb-4">{feature.icon}</div>
+                                        <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                                        <p className="text-gray-400">{feature.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Pricing */}
+                    <section className="relative z-10 px-6 py-20">
+                        <div className="max-w-5xl mx-auto">
+                            <h2 className="heading-font text-4xl font-bold text-center mb-4">
+                                Simple, Transparent Pricing
+                            </h2>
+                            <p className="text-center text-gray-400 mb-16">
+                                Choose the plan that fits your team size
+                            </p>
+                            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                                {/* Starter Plan */}
+                                <div className="glass-card p-8 pricing-card">
+                                    <h3 className="heading-font text-2xl font-bold mb-2">Starter</h3>
+                                    <div className="flex items-baseline mb-6">
+                                        <span className="text-5xl font-bold">$29</span>
+                                        <span className="text-gray-400 ml-2">/month</span>
+                                    </div>
+                                    <ul className="space-y-4 mb-8">
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Up to 5 users</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>250 customers</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Unlimited jobs</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Custom fields & tags</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Basic reporting</span>
+                                        </li>
+                                    </ul>
+                                    <button 
+                                        onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
+                                        className="btn-secondary w-full"
+                                    >
+                                        Start Free Trial
+                                    </button>
+                                </div>
+
+                                {/* Professional Plan */}
+                                <div className="glass-card p-8 pricing-card border-2 border-[#5856d6]">
+                                    <div className="popular-badge">Popular</div>
+                                    <h3 className="heading-font text-2xl font-bold mb-2">Professional</h3>
+                                    <div className="flex items-baseline mb-6">
+                                        <span className="text-5xl font-bold">$39</span>
+                                        <span className="text-gray-400 ml-2">/month</span>
+                                    </div>
+                                    <ul className="space-y-4 mb-8">
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Up to 10 users</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>500 customers</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Unlimited jobs</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Custom fields & tags</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Advanced reporting</span>
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <span className="text-green-400">✓</span>
+                                            <span>Priority support</span>
+                                        </li>
+                                    </ul>
+                                    <button 
+                                        onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
+                                        className="btn-primary w-full"
+                                    >
+                                        Start Free Trial
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Footer */}
+                    <footer className="relative z-10 px-6 py-12 border-t border-gray-800">
+                        <div className="max-w-6xl mx-auto text-center text-gray-500">
+                            <p className="heading-font text-2xl font-bold mb-4">
+                                Bitsy<span className="text-[#5856d6]">CRM</span>
+                            </p>
+                            <p>&copy; 2026 BitsyCRM. All rights reserved.</p>
+                        </div>
+                    </footer>
+
+                    {/* Auth Modal */}
+                    {showAuthModal && (
+                        <AuthModal 
+                            mode={authMode} 
+                            onClose={() => setShowAuthModal(false)}
+                            onSwitchMode={(mode) => setAuthMode(mode)}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // Auth Modal Component
+        const AuthModal = ({ mode, onClose, onSwitchMode }) => {
+            const { signUp, signIn } = useAuth();
+            const [formData, setFormData] = useState({
+                email: '',
+                password: '',
+                organizationName: '',
+                plan: 'starter'
+            });
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                try {
+                    if (mode === 'signup') {
+                        await signUp(formData.email, formData.password, formData.organizationName, formData.plan);
+                        alert('Account created! Please check your email to verify your account.');
+                    } else {
+                        await signIn(formData.email, formData.password);
+                    }
+                    onClose();
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content glass-card p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="heading-font text-2xl font-bold">
+                                {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
+                            </h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">
+                                ×
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {mode === 'signup' && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2">Business Name</label>
+                                        <input
+                                            type="text"
+                                            className="input-field"
+                                            placeholder="Acme Services Inc."
+                                            value={formData.organizationName}
+                                            onChange={(e) => setFormData({...formData, organizationName: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2">Select Plan</label>
+                                        <select
+                                            className="input-field"
+                                            value={formData.plan}
+                                            onChange={(e) => setFormData({...formData, plan: e.target.value})}
+                                        >
+                                            <option value="starter">Starter - $29/month (5 users, 250 customers)</option>
+                                            <option value="professional">Professional - $39/month (10 users, 500 customers)</option>
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                            
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    className="input-field"
+                                    placeholder="you@company.com"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    className="input-field"
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    required
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg">
+                                    {error}
+                                </div>
+                            )}
+
+                            <button 
+                                type="submit" 
+                                className="btn-primary w-full"
+                                disabled={loading}
+                            >
+                                {loading ? 'Processing...' : (mode === 'signup' ? 'Create Account' : 'Sign In')}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center text-sm text-gray-400">
+                            {mode === 'signup' ? (
+                                <>
+                                    Already have an account?{' '}
+                                    <button onClick={() => onSwitchMode('signin')} className="text-[#5856d6] hover:underline">
+                                        Sign In
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    Don't have an account?{' '}
+                                    <button onClick={() => onSwitchMode('signup')} className="text-[#5856d6] hover:underline">
+                                        Sign Up
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Dashboard Component
+        const Dashboard = () => {
+            const { user, organization, signOut } = useAuth();
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [customers, setCustomers] = useState([]);
+            const [jobs, setJobs] = useState([]);
+            const [teamMembers, setTeamMembers] = useState([]);
+            const [stats, setStats] = useState({
+                totalCustomers: 0,
+                activeJobs: 0,
+                completedJobs: 0,
+                revenue: 0
+            });
+
+            useEffect(() => {
+                if (organization) {
+                    loadData();
+                }
+            }, [organization]);
+
+            const loadData = async () => {
+                // Load customers
+                const { data: customersData } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .eq('organization_id', organization.id);
+                setCustomers(customersData || []);
+
+                // Load jobs
+                const { data: jobsData } = await supabase
+                    .from('jobs')
+                    .select('*')
+                    .eq('organization_id', organization.id);
+                setJobs(jobsData || []);
+
+                // Load team members
+                const { data: teamData } = await supabase
+                    .from('team_members')
+                    .select('*')
+                    .eq('organization_id', organization.id);
+                setTeamMembers(teamData || []);
+
+                // Calculate stats
+                setStats({
+                    totalCustomers: customersData?.length || 0,
+                    activeJobs: jobsData?.filter(j => j.status !== 'completed').length || 0,
+                    completedJobs: jobsData?.filter(j => j.status === 'completed').length || 0,
+                    revenue: jobsData?.reduce((sum, j) => sum + (j.value || 0), 0) || 0
+                });
+            };
+
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'dashboard':
+                        return <DashboardHome stats={stats} />;
+                    case 'customers':
+                        return <CustomersView customers={customers} organization={organization} onUpdate={loadData} />;
+                    case 'jobs':
+                        return <JobsView jobs={jobs} customers={customers} organization={organization} onUpdate={loadData} />;
+                    case 'team':
+                        return <TeamView teamMembers={teamMembers} organization={organization} onUpdate={loadData} />;
+                    case 'settings':
+                        return <SettingsView organization={organization} onUpdate={loadData} />;
+                    default:
+                        return <DashboardHome stats={stats} />;
+                }
+            };
+
+            return (
+                <div className="flex h-screen bg-[#0a0a0f]">
+                    {/* Sidebar */}
+                    <div className="dashboard-sidebar w-64 flex flex-col">
+                        <div className="p-6 border-b border-gray-800">
+                            <div className="heading-font text-2xl font-bold">
+                                Bitsy<span className="text-[#5856d6]">CRM</span>
+                            </div>
+                            <div className="text-sm text-gray-400 mt-2">{organization?.name}</div>
+                        </div>
+
+                        <nav className="flex-1 py-4">
+                            {[
+                                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                                { id: 'customers', label: 'Customers', icon: '👥' },
+                                { id: 'jobs', label: 'Jobs', icon: '📋' },
+                                { id: 'team', label: 'Team', icon: '🤝' },
+                                { id: 'settings', label: 'Settings', icon: '⚙️' }
+                            ].map(item => (
+                                <div
+                                    key={item.id}
+                                    className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                                    onClick={() => setActiveTab(item.id)}
+                                >
+                                    <span className="text-xl">{item.icon}</span>
+                                    <span>{item.label}</span>
+                                </div>
+                            ))}
+                        </nav>
+
+                        <div className="p-4 border-t border-gray-800">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-full bg-[#5856d6] flex items-center justify-center text-white font-bold">
+                                    {user?.email?.[0].toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium truncate">{user?.email}</div>
+                                    <div className="text-xs text-gray-400 capitalize">{organization?.plan} Plan</div>
+                                </div>
+                            </div>
+                            <button onClick={signOut} className="btn-secondary w-full text-sm py-2">
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 overflow-auto">
+                        <div className="p-8">
+                            {renderContent()}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Dashboard Home
+        const DashboardHome = ({ stats }) => {
+            return (
+                <div>
+                    <h1 className="heading-font text-4xl font-bold mb-8">Dashboard</h1>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div className="glass-card p-6 stat-card">
+                            <div className="text-3xl mb-2">👥</div>
+                            <div className="text-3xl font-bold mb-1">{stats.totalCustomers}</div>
+                            <div className="text-gray-400 text-sm">Total Customers</div>
+                        </div>
+                        <div className="glass-card p-6 stat-card">
+                            <div className="text-3xl mb-2">📋</div>
+                            <div className="text-3xl font-bold mb-1">{stats.activeJobs}</div>
+                            <div className="text-gray-400 text-sm">Active Jobs</div>
+                        </div>
+                        <div className="glass-card p-6 stat-card">
+                            <div className="text-3xl mb-2">✅</div>
+                            <div className="text-3xl font-bold mb-1">{stats.completedJobs}</div>
+                            <div className="text-gray-400 text-sm">Completed Jobs</div>
+                        </div>
+                        <div className="glass-card p-6 stat-card">
+                            <div className="text-3xl mb-2">💰</div>
+                            <div className="text-3xl font-bold mb-1">${stats.revenue.toLocaleString()}</div>
+                            <div className="text-gray-400 text-sm">Total Revenue</div>
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-6">
+                        <h2 className="text-xl font-bold mb-4">Welcome to Bitsy CRM</h2>
+                        <p className="text-gray-400 mb-4">
+                            Get started by adding your first customer or creating a job. Use the navigation on the left to explore all features.
+                        </p>
+                        <div className="flex gap-4">
+                            <button className="btn-primary">Add Customer</button>
+                            <button className="btn-secondary">Create Job</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Customers View
+        const CustomersView = ({ customers, organization, onUpdate }) => {
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+
+            const filteredCustomers = customers.filter(c => 
+                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.email?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            const canAddMore = customers.length < organization.max_customers;
+
+            return (
+                <div>
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="heading-font text-4xl font-bold">Customers</h1>
+                        <button 
+                            className="btn-primary"
+                            onClick={() => canAddMore ? setShowAddModal(true) : alert(`You've reached your plan limit of ${organization.max_customers} customers`)}
+                        >
+                            Add Customer
+                        </button>
+                    </div>
+
+                    <div className="glass-card p-6 mb-6">
+                        <input
+                            type="text"
+                            className="input-field"
+                            placeholder="Search customers..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="glass-card overflow-hidden">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="table-header">
+                                    <th className="text-left p-4">Name</th>
+                                    <th className="text-left p-4">Email</th>
+                                    <th className="text-left p-4">Phone</th>
+                                    <th className="text-left p-4">Status</th>
+                                    <th className="text-left p-4">Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredCustomers.map(customer => (
+                                    <tr key={customer.id} className="table-row">
+                                        <td className="p-4 font-medium">{customer.name}</td>
+                                        <td className="p-4 text-gray-400">{customer.email || '-'}</td>
+                                        <td className="p-4 text-gray-400">{customer.phone || '-'}</td>
+                                        <td className="p-4">
+                                            <span className="badge badge-success">Active</span>
+                                        </td>
+                                        <td className="p-4 text-gray-400">
+                                            {new Date(customer.created_at).toLocaleDateString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {filteredCustomers.length === 0 && (
+                            <div className="p-8 text-center text-gray-400">
+                                {searchTerm ? 'No customers found' : 'No customers yet. Add your first customer to get started!'}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mt-4 text-sm text-gray-400">
+                        {customers.length} of {organization.max_customers} customers used
+                    </div>
+
+                    {showAddModal && (
+                        <AddCustomerModal 
+                            organizationId={organization.id}
+                            onClose={() => setShowAddModal(false)}
+                            onSuccess={() => {
+                                setShowAddModal(false);
+                                onUpdate();
+                            }}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // Add Customer Modal
+        const AddCustomerModal = ({ organizationId, onClose, onSuccess }) => {
+            const [formData, setFormData] = useState({
+                name: '',
+                email: '',
+                phone: '',
+                address: '',
+                notes: ''
+            });
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+
+                try {
+                    const { error } = await supabase
+                        .from('customers')
+                        .insert({
+                            ...formData,
+                            organization_id: organizationId
+                        });
+
+                    if (error) throw error;
+                    onSuccess();
+                } catch (err) {
+                    alert(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h2 className="heading-font text-2xl font-bold mb-6">Add New Customer</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Name *</label>
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    className="input-field"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Phone</label>
+                                <input
+                                    type="tel"
+                                    className="input-field"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Address</label>
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    value={formData.address}
+                                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Notes</label>
+                                <textarea
+                                    className="input-field"
+                                    rows="3"
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                />
+                            </div>
+                            <div className="flex gap-4">
+                                <button type="submit" className="btn-primary flex-1" disabled={loading}>
+                                    {loading ? 'Adding...' : 'Add Customer'}
+                                </button>
+                                <button type="button" onClick={onClose} className="btn-secondary flex-1">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // Jobs View (Simplified)
+        const JobsView = ({ jobs, customers, organization, onUpdate }) => {
+            return (
+                <div>
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="heading-font text-4xl font-bold">Jobs</h1>
+                        <button className="btn-primary">Create Job</button>
+                    </div>
+                    <div className="glass-card p-8 text-center text-gray-400">
+                        Jobs management coming soon! Track service jobs, assign team members, and monitor progress.
+                    </div>
+                </div>
+            );
+        };
+
+        // Team View (Simplified)
+        const TeamView = ({ teamMembers, organization, onUpdate }) => {
+            return (
+                <div>
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="heading-font text-4xl font-bold">Team</h1>
+                        <button className="btn-primary">Invite Member</button>
+                    </div>
+                    <div className="glass-card p-8 text-center text-gray-400">
+                        Team management coming soon! Invite team members and manage permissions.
+                        <div className="mt-4 text-sm">
+                            Your plan allows up to {organization.max_users} users
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Settings View (Simplified)
+        const SettingsView = ({ organization, onUpdate }) => {
+            return (
+                <div>
+                    <h1 className="heading-font text-4xl font-bold mb-8">Settings</h1>
+                    <div className="glass-card p-8">
+                        <h2 className="text-xl font-bold mb-4">Organization Settings</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Business Name</label>
+                                <input type="text" className="input-field" value={organization.name} disabled />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Current Plan</label>
+                                <div className="capitalize text-lg font-semibold text-[#5856d6]">
+                                    {organization.plan}
+                                </div>
+                            </div>
+                            <div className="pt-4">
+                                <p className="text-sm text-gray-400">
+                                    Customization features (custom fields, terminology) coming soon!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App Component
+        const App = () => {
+            const { user, loading } = useAuth();
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+                        <div className="loading-spinner"></div>
+                    </div>
+                );
+            }
+
+            return user ? <Dashboard /> : <LandingPage />;
+        };
+
+        // Render App
+        ReactDOM.render(
+            <AuthProvider>
+                <App />
+            </AuthProvider>,
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
