@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://js.stripe.com/v3/"></script>
     <link href="https://fonts.googleapis.com/css2?family=Zodiak:wght@400;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -289,6 +290,53 @@
         // REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
         const SUPABASE_URL = 'https://pzopawdefpsqrbrhzsha.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6b3Bhd2RlZnBzcXJicmh6c2hhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODQwNDIsImV4cCI6MjA4NDI2MDA0Mn0.uft6j_jtpXoIxurcMllBySgwxSFsIxPystJP26jhu_4';
+        
+        // Stripe Configuration
+        const STRIPE_PUBLISHABLE_KEY = 'pk_test_51SqjuWRgjDoUT1PohLBlPObjMM727gRyhJuQqRaGsgMoNPrP2zP99cJG7J74z4rgvxmxo1ayr87QHncifA0Spqry00BwqTnmTK';
+        const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+        
+        // Stripe Price IDs - YOU NEED TO CREATE THESE IN STRIPE DASHBOARD
+        const STRIPE_PRICES = {
+            starter: 'price_STARTER_ID', // Replace with your Stripe Price ID for $29/month
+            professional: 'price_PROFESSIONAL_ID' // Replace with your Stripe Price ID for $39/month
+        };
+
+        // Stripe Payment Functions
+        const createCheckoutSession = async (plan, userEmail) => {
+            try {
+                // For now, redirect to Stripe Checkout with simple setup
+                // In production, you'd call your backend to create a session
+                const { error } = await stripe.redirectToCheckout({
+                    lineItems: [{
+                        price: STRIPE_PRICES[plan],
+                        quantity: 1,
+                    }],
+                    mode: 'subscription',
+                    successUrl: window.location.origin + '/success',
+                    cancelUrl: window.location.origin + '/',
+                    customerEmail: userEmail,
+                });
+
+                if (error) {
+                    console.error('Stripe error:', error);
+                    alert('Payment failed: ' + error.message);
+                }
+            } catch (err) {
+                console.error('Checkout error:', err);
+                alert('Failed to start checkout. Please try again.');
+            }
+        };
+
+        const openCustomerPortal = async (customerId) => {
+            try {
+                // This requires a backend endpoint
+                // For now, show a message
+                alert('Customer portal coming soon! You can manage your subscription in your Stripe dashboard.');
+            } catch (err) {
+                console.error('Portal error:', err);
+                alert('Failed to open billing portal.');
+            }
+        };
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Auth Context
@@ -324,8 +372,7 @@
                 }
                 setLoading(false);
             };
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
-  const stripe = Stripe(pk_live_51SqjuWRgjDoUT1PoY0WYacAr0uDyXxsIgXRtGaa4RFkbEP6oJ00fuuOBA925EP7Hh9yQv4styGJ98vwxQV5sfdFd007WacumLl);
+
             const loadOrganization = async (userId) => {
                 const { data, error } = await supabase
                     .from('organizations')
@@ -431,7 +478,7 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                             </h1>
                             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
                                 The affordable CRM designed specifically for service businesses with under 50 employees. 
-                                Manage customers, track jobs, and grow your business—without the enterprise price tag.
+                                Manage customers, track jobs, and grow your businessâ€”without the enterprise price tag.
                             </p>
                             <button 
                                 onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
@@ -454,32 +501,32 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                                     {
                                         title: 'Customer Management',
                                         description: 'Track all your clients in one place with custom fields, tags, and notes.',
-                                        icon: '👥'
+                                        icon: 'ðŸ‘¥'
                                     },
                                     {
                                         title: 'Job Tracking',
                                         description: 'Monitor service jobs from start to finish with status updates and assignments.',
-                                        icon: '📋'
+                                        icon: 'ðŸ“‹'
                                     },
                                     {
                                         title: 'Team Collaboration',
                                         description: 'Add your team members and assign tasks to keep everyone aligned.',
-                                        icon: '🤝'
+                                        icon: 'ðŸ¤'
                                     },
                                     {
                                         title: 'Customizable Fields',
                                         description: 'Adapt Bitsy to your business with custom terminology and data fields.',
-                                        icon: '⚙️'
+                                        icon: 'âš™ï¸'
                                     },
                                     {
                                         title: 'Simple Reporting',
                                         description: 'Get insights on revenue, completed jobs, and business performance.',
-                                        icon: '📊'
+                                        icon: 'ðŸ“Š'
                                     },
                                     {
                                         title: 'Multi-User Access',
                                         description: 'Secure individual logins for each team member with role-based permissions.',
-                                        icon: '🔐'
+                                        icon: 'ðŸ”'
                                     }
                                 ].map((feature, idx) => (
                                     <div key={idx} className="glass-card p-8 feature-card">
@@ -511,23 +558,23 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                                     </div>
                                     <ul className="space-y-4 mb-8">
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Up to 5 users</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>250 customers</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Unlimited jobs</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Custom fields & tags</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Basic reporting</span>
                                         </li>
                                     </ul>
@@ -549,27 +596,27 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                                     </div>
                                     <ul className="space-y-4 mb-8">
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Up to 10 users</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>500 customers</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Unlimited jobs</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Custom fields & tags</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Advanced reporting</span>
                                         </li>
                                         <li className="flex items-center gap-3">
-                                            <span className="text-green-400">✓</span>
+                                            <span className="text-green-400">âœ“</span>
                                             <span>Priority support</span>
                                         </li>
                                     </ul>
@@ -646,7 +693,7 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                                 {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
                             </h2>
                             <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">
-                                ×
+                                Ã—
                             </button>
                         </div>
 
@@ -695,7 +742,7 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                                 <input
                                     type="password"
                                     className="input-field"
-                                    placeholder="••••••••"
+                                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                                     value={formData.password}
                                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                                     required
@@ -820,11 +867,11 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
 
                         <nav className="flex-1 py-4">
                             {[
-                                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-                                { id: 'customers', label: 'Customers', icon: '👥' },
-                                { id: 'jobs', label: 'Jobs', icon: '📋' },
-                                { id: 'team', label: 'Team', icon: '🤝' },
-                                { id: 'settings', label: 'Settings', icon: '⚙️' }
+                                { id: 'dashboard', label: 'Dashboard', icon: 'ðŸ“Š' },
+                                { id: 'customers', label: 'Customers', icon: 'ðŸ‘¥' },
+                                { id: 'jobs', label: 'Jobs', icon: 'ðŸ“‹' },
+                                { id: 'team', label: 'Team', icon: 'ðŸ¤' },
+                                { id: 'settings', label: 'Settings', icon: 'âš™ï¸' }
                             ].map(item => (
                                 <div
                                     key={item.id}
@@ -871,22 +918,22 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2">👥</div>
+                            <div className="text-3xl mb-2">ðŸ‘¥</div>
                             <div className="text-3xl font-bold mb-1">{stats.totalCustomers}</div>
                             <div className="text-gray-400 text-sm">Total Customers</div>
                         </div>
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2">📋</div>
+                            <div className="text-3xl mb-2">ðŸ“‹</div>
                             <div className="text-3xl font-bold mb-1">{stats.activeJobs}</div>
                             <div className="text-gray-400 text-sm">Active Jobs</div>
                         </div>
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2">✅</div>
+                            <div className="text-3xl mb-2">âœ…</div>
                             <div className="text-3xl font-bold mb-1">{stats.completedJobs}</div>
                             <div className="text-gray-400 text-sm">Completed Jobs</div>
                         </div>
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2">💰</div>
+                            <div className="text-3xl mb-2">ðŸ’°</div>
                             <div className="text-3xl font-bold mb-1">${stats.revenue.toLocaleString()}</div>
                             <div className="text-gray-400 text-sm">Total Revenue</div>
                         </div>
@@ -1122,30 +1169,377 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
             );
         };
 
-        // Settings View (Simplified)
+        // Settings View with Billing
         const SettingsView = ({ organization, onUpdate }) => {
+            const [activeSettingsTab, setActiveSettingsTab] = useState('general');
+            
+            const getSubscriptionStatus = () => {
+                if (organization.subscription_status === 'active') {
+                    return { label: 'Active', class: 'badge-success' };
+                } else if (organization.subscription_status === 'trial') {
+                    return { label: 'Trial', class: 'badge-info' };
+                } else if (organization.subscription_status === 'cancelled') {
+                    return { label: 'Cancelled', class: 'badge-error' };
+                } else {
+                    return { label: 'Inactive', class: 'badge-warning' };
+                }
+            };
+            
+            const handleUpgrade = (plan) => {
+                alert('To enable payments:\n\n1. Create products in Stripe Dashboard\n2. Update STRIPE_PRICES in code\n3. Set up backend (see STRIPE-INTEGRATION.md)\n\nFor now, this is a demo placeholder.');
+            };
+            
             return (
                 <div>
                     <h1 className="heading-font text-4xl font-bold mb-8">Settings</h1>
-                    <div className="glass-card p-8">
-                        <h2 className="text-xl font-bold mb-4">Organization Settings</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Business Name</label>
-                                <input type="text" className="input-field" value={organization.name} disabled />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Current Plan</label>
-                                <div className="capitalize text-lg font-semibold text-[#5856d6]">
-                                    {organization.plan}
+                    
+                    <div className="flex gap-4 mb-8">
+                        <button
+                            onClick={() => setActiveSettingsTab('general')}
+                            className={activeSettingsTab === 'general' ? 'btn-primary' : 'btn-secondary'}
+                        >
+                            General
+                        </button>
+                        <button
+                            onClick={() => setActiveSettingsTab('billing')}
+                            className={activeSettingsTab === 'billing' ? 'btn-primary' : 'btn-secondary'}
+                        >
+                            Billing
+                        </button>
+                    </div>
+                    
+                    {activeSettingsTab === 'general' && (
+                        <div className="glass-card p-8">
+                            <h2 className="text-xl font-bold mb-6">Organization</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Business Name</label>
+                                    <input type="text" className="input-field" value={organization.name} disabled />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Current Plan</label>
+                                    <div className="capitalize text-lg font-semibold text-[#5856d6]">
+                                        {organization.plan} - ${organization.plan === 'starter' ? '29' : '39'}/month
+                                    </div>
                                 </div>
                             </div>
-                            <div className="pt-4">
-                                <p className="text-sm text-gray-400">
-                                    Customization features (custom fields, terminology) coming soon!
-                                </p>
+                        </div>
+                    )}
+                    
+                    {activeSettingsTab === 'billing' && (
+                        <div className="glass-card p-8">
+                            <h2 className="text-xl font-bold mb-6">Billing & Subscription</h2>
+                            <div className="space-y-6">
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-sm text-gray-400 mb-1">Plan</div>
+                                        <div className="text-2xl font-bold capitalize">{organization.plan}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-sm text-gray-400 mb-1">Status</div>
+                                        <span className="badge badge-info">
+                                            {organization.subscription_status || 'Trial'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button onClick={() => handleUpgrade(organization.plan)} className="btn-primary">
+                                    Manage Subscription
+                                </button>
+                                <div className="bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-3 rounded-lg text-sm">
+                                    <strong>Payment Setup Required:</strong> Follow STRIPE-INTEGRATION.md to enable billing
+                                </div>
                             </div>
                         </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Super Admin Dashboard Component
+        const SuperAdminDashboard = () => {
+            const { user } = useAuth();
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [loading, setLoading] = useState(true);
+            const [activeAdminTab, setActiveAdminTab] = useState('overview');
+            const [organizations, setOrganizations] = useState([]);
+            const [allCustomers, setAllCustomers] = useState([]);
+            const [adminUsers, setAdminUsers] = useState([]);
+            const [stats, setStats] = useState({
+                totalOrgs: 0,
+                totalCustomers: 0,
+                activeSubscriptions: 0,
+                trialOrgs: 0,
+                mrr: 0
+            });
+
+            useEffect(() => {
+                checkAdminStatus();
+            }, [user]);
+
+            const checkAdminStatus = async () => {
+                if (!user) return;
+                
+                try {
+                    const { data, error } = await supabase
+                        .from('admin_users')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .eq('is_active', true)
+                        .single();
+
+                    if (data) {
+                        setIsAdmin(true);
+                        loadAdminData();
+                    }
+                } catch (err) {
+                    console.log('Not an admin user');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const loadAdminData = async () => {
+                const { data: orgsData } = await supabase
+                    .from('organizations')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                setOrganizations(orgsData || []);
+
+                const { data: customersData } = await supabase
+                    .from('customers')
+                    .select('id, organization_id');
+                setAllCustomers(customersData || []);
+
+                const { data: adminsData } = await supabase
+                    .from('admin_users')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                setAdminUsers(adminsData || []);
+
+                const totalOrgs = orgsData?.length || 0;
+                const totalCustomers = customersData?.length || 0;
+                const activeSubscriptions = orgsData?.filter(o => o.subscription_status === 'active').length || 0;
+                const trialOrgs = orgsData?.filter(o => o.subscription_status === 'trial').length || 0;
+                const mrr = orgsData?.filter(o => o.subscription_status === 'active')
+                    .reduce((sum, org) => sum + (org.plan === 'starter' ? 29 : 39), 0) || 0;
+
+                setStats({ totalOrgs, totalCustomers, activeSubscriptions, trialOrgs, mrr });
+            };
+
+            const deleteOrganization = async (orgId, orgName) => {
+                if (!confirm(`âš ï¸ DELETE "${orgName}"?\n\nThis will permanently delete ALL data.\nType DELETE to confirm.`)) {
+                    return;
+                }
+                const confirmation = prompt('Type DELETE to confirm:');
+                if (confirmation !== 'DELETE') {
+                    alert('Deletion cancelled');
+                    return;
+                }
+                try {
+                    const { error } = await supabase.from('organizations').delete().eq('id', orgId);
+                    if (error) throw error;
+                    alert('Organization deleted');
+                    loadAdminData();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            const updateSubscriptionStatus = async (orgId, newStatus) => {
+                try {
+                    const { error } = await supabase.from('organizations')
+                        .update({ subscription_status: newStatus }).eq('id', orgId);
+                    if (error) throw error;
+                    alert('Status updated');
+                    loadAdminData();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="loading-spinner"></div>
+                    </div>
+                );
+            }
+
+            if (!isAdmin) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6">
+                        <div className="glass-card p-8 max-w-md text-center">
+                            <div className="text-6xl mb-4">ðŸ”’</div>
+                            <h2 className="text-2xl font-bold mb-3">Access Denied</h2>
+                            <p className="text-gray-400">You don't have admin privileges.</p>
+                            <button onClick={() => window.location.hash = ''} className="btn-primary mt-6">
+                                Back to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-[#0a0a0f] p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="mb-8">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h1 className="heading-font text-4xl font-bold mb-2">Super Admin Dashboard</h1>
+                                    <p className="text-gray-400">Manage all organizations and system settings</p>
+                                </div>
+                                <button onClick={() => window.location.hash = ''} className="btn-secondary">
+                                    â† Back to App
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                            <div className="glass-card p-6 stat-card">
+                                <div className="text-2xl mb-2">ðŸ¢</div>
+                                <div className="text-3xl font-bold">{stats.totalOrgs}</div>
+                                <div className="text-gray-400 text-sm">Organizations</div>
+                            </div>
+                            <div className="glass-card p-6 stat-card">
+                                <div className="text-2xl mb-2">ðŸ‘¥</div>
+                                <div className="text-3xl font-bold">{stats.totalCustomers}</div>
+                                <div className="text-gray-400 text-sm">Total Customers</div>
+                            </div>
+                            <div className="glass-card p-6 stat-card">
+                                <div className="text-2xl mb-2">âœ…</div>
+                                <div className="text-3xl font-bold">{stats.activeSubscriptions}</div>
+                                <div className="text-gray-400 text-sm">Active Subs</div>
+                            </div>
+                            <div className="glass-card p-6 stat-card">
+                                <div className="text-2xl mb-2">ðŸ†“</div>
+                                <div className="text-3xl font-bold">{stats.trialOrgs}</div>
+                                <div className="text-gray-400 text-sm">Trial Accounts</div>
+                            </div>
+                            <div className="glass-card p-6 stat-card">
+                                <div className="text-2xl mb-2">ðŸ’°</div>
+                                <div className="text-3xl font-bold">${stats.mrr}</div>
+                                <div className="text-gray-400 text-sm">MRR</div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 mb-8 overflow-x-auto">
+                            <button onClick={() => setActiveAdminTab('overview')}
+                                className={activeAdminTab === 'overview' ? 'btn-primary' : 'btn-secondary'}>
+                                Overview
+                            </button>
+                            <button onClick={() => setActiveAdminTab('organizations')}
+                                className={activeAdminTab === 'organizations' ? 'btn-primary' : 'btn-secondary'}>
+                                Organizations
+                            </button>
+                            <button onClick={() => setActiveAdminTab('admins')}
+                                className={activeAdminTab === 'admins' ? 'btn-primary' : 'btn-secondary'}>
+                                Admin Users
+                            </button>
+                        </div>
+
+                        {activeAdminTab === 'overview' && (
+                            <div className="glass-card p-8">
+                                <h2 className="text-2xl font-bold mb-6">Recent Organizations</h2>
+                                <div className="space-y-4">
+                                    {organizations.slice(0, 10).map(org => (
+                                        <div key={org.id} className="glass-card p-4 flex justify-between items-center">
+                                            <div>
+                                                <div className="font-bold">{org.name}</div>
+                                                <div className="text-sm text-gray-400">
+                                                    {org.plan} â€¢ {org.subscription_status} â€¢ 
+                                                    {new Date(org.created_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                            <span className={`badge ${
+                                                org.subscription_status === 'active' ? 'badge-success' :
+                                                org.subscription_status === 'trial' ? 'badge-info' : 'badge-warning'
+                                            }`}>
+                                                {org.subscription_status}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeAdminTab === 'organizations' && (
+                            <div className="glass-card overflow-hidden">
+                                <div className="p-6 border-b border-gray-800">
+                                    <h2 className="text-2xl font-bold">All Organizations</h2>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="table-header">
+                                                <th className="text-left p-4">Name</th>
+                                                <th className="text-left p-4">Plan</th>
+                                                <th className="text-left p-4">Status</th>
+                                                <th className="text-left p-4">Customers</th>
+                                                <th className="text-left p-4">Created</th>
+                                                <th className="text-left p-4">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {organizations.map(org => {
+                                                const customerCount = allCustomers.filter(c => c.organization_id === org.id).length;
+                                                return (
+                                                    <tr key={org.id} className="table-row">
+                                                        <td className="p-4 font-medium">{org.name}</td>
+                                                        <td className="p-4 capitalize">{org.plan}</td>
+                                                        <td className="p-4">
+                                                            <span className={`badge ${
+                                                                org.subscription_status === 'active' ? 'badge-success' :
+                                                                org.subscription_status === 'trial' ? 'badge-info' : 'badge-warning'
+                                                            }`}>
+                                                                {org.subscription_status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-gray-400">{customerCount}</td>
+                                                        <td className="p-4 text-gray-400">
+                                                            {new Date(org.created_at).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex gap-2">
+                                                                <button onClick={() => updateSubscriptionStatus(org.id, 'active')}
+                                                                    className="text-xs px-3 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/30">
+                                                                    Activate
+                                                                </button>
+                                                                <button onClick={() => deleteOrganization(org.id, org.name)}
+                                                                    className="text-xs px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeAdminTab === 'admins' && (
+                            <div className="glass-card p-8">
+                                <h2 className="text-2xl font-bold mb-6">Admin Users</h2>
+                                <div className="space-y-4">
+                                    {adminUsers.map(admin => (
+                                        <div key={admin.id} className="glass-card p-4 flex justify-between items-center">
+                                            <div>
+                                                <div className="font-bold">{admin.email}</div>
+                                                <div className="text-sm text-gray-400">
+                                                    {admin.role} â€¢ Created {new Date(admin.created_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                            <span className={`badge ${admin.is_active ? 'badge-success' : 'badge-error'}`}>
+                                                {admin.is_active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -1154,6 +1548,18 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
         // Main App Component
         const App = () => {
             const { user, loading } = useAuth();
+            const [isAdminRoute, setIsAdminRoute] = useState(false);
+
+            useEffect(() => {
+                const checkHash = () => {
+                    setIsAdminRoute(window.location.hash === '#admin');
+                };
+                
+                checkHash();
+                window.addEventListener('hashchange', checkHash);
+                
+                return () => window.removeEventListener('hashchange', checkHash);
+            }, []);
 
             if (loading) {
                 return (
@@ -1161,6 +1567,10 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
                         <div className="loading-spinner"></div>
                     </div>
                 );
+            }
+
+            if (isAdminRoute && user) {
+                return <SuperAdminDashboard />;
             }
 
             return user ? <Dashboard /> : <LandingPage />;
@@ -1176,4 +1586,3 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51ABC...';
     </script>
 </body>
 </html>
-
