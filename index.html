@@ -295,26 +295,28 @@
         const STRIPE_PUBLISHABLE_KEY = 'pk_test_51SqjuWRgjDoUT1PohLBlPObjMM727gRyhJuQqRaGsgMoNPrP2zP99cJG7J74z4rgvxmxo1ayr87QHncifA0Spqry00BwqTnmTK';
         const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
         
-        // Stripe Price IDs - YOU NEED TO CREATE THESE IN STRIPE DASHBOARD
+        // Stripe Price IDs - CONFIGURED WITH YOUR ACTUAL IDS
         const STRIPE_PRICES = {
-            starter: 'price_STARTER_ID', // Replace with your Stripe Price ID for $29/month
-            professional: 'price_PROFESSIONAL_ID' // Replace with your Stripe Price ID for $39/month
+            starter: 'price_1SqkTyRgjDoUT1Poue1pLCTo',
+            professional: 'price_1SqkVERgjDoUT1Po8EcDsTxb'
         };
 
         // Stripe Payment Functions
-        const createCheckoutSession = async (plan, userEmail) => {
+        const createSimpleCheckout = async (plan, userEmail) => {
             try {
-                // For now, redirect to Stripe Checkout with simple setup
-                // In production, you'd call your backend to create a session
+                const priceId = STRIPE_PRICES[plan];
+                if (!priceId) {
+                    alert('Invalid plan selected');
+                    return;
+                }
+                
                 const { error } = await stripe.redirectToCheckout({
-                    lineItems: [{
-                        price: STRIPE_PRICES[plan],
-                        quantity: 1,
-                    }],
+                    lineItems: [{ price: priceId, quantity: 1 }],
                     mode: 'subscription',
-                    successUrl: window.location.origin + '/success',
-                    cancelUrl: window.location.origin + '/',
+                    successUrl: window.location.origin + '/?success=true',
+                    cancelUrl: window.location.origin + '/?canceled=true',
                     customerEmail: userEmail,
+                    clientReferenceId: userEmail
                 });
 
                 if (error) {
@@ -327,15 +329,49 @@
             }
         };
 
-        const openCustomerPortal = async (customerId) => {
-            try {
-                // This requires a backend endpoint
-                // For now, show a message
-                alert('Customer portal coming soon! You can manage your subscription in your Stripe dashboard.');
-            } catch (err) {
-                console.error('Portal error:', err);
-                alert('Failed to open billing portal.');
+        const openCustomerPortal = async (stripeCustomerId) => {
+            if (!stripeCustomerId) {
+                alert('No subscription found. Please subscribe first.');
+                return;
             }
+            alert('Customer portal coming soon! You can manage your subscription in your Stripe dashboard.');
+        };
+
+        // Handle successful payment redirect
+        const handlePaymentSuccess = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const success = urlParams.get('success');
+            
+            if (success === 'true') {
+                alert('ðŸŽ‰ Payment successful! Your subscription is now active. Refreshing...');
+                window.history.replaceState({}, document.title, window.location.pathname);
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        };
+
+        // Check for payment success on page load
+        window.addEventListener('load', handlePaymentSuccess);
+
+        // Subscription helper functions
+        const isOnTrial = (organization) => {
+            if (!organization) return false;
+            return organization.subscription_status === 'trial';
+        };
+
+        const getTrialDaysRemaining = (organization) => {
+            if (!organization || !organization.trial_ends_at) return 0;
+            const now = new Date();
+            const trialEnd = new Date(organization.trial_ends_at);
+            const diffTime = trialEnd - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return Math.max(0, diffDays);
+        };
+
+        const canAccessFeatures = (organization) => {
+            if (!organization) return false;
+            if (organization.subscription_status === 'active') return true;
+            if (isOnTrial(organization) && getTrialDaysRemaining(organization) > 0) return true;
+            return false;
         };
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1186,7 +1222,12 @@
             };
             
             const handleUpgrade = (plan) => {
-                alert('To enable payments:\n\n1. Create products in Stripe Dashboard\n2. Update STRIPE_PRICES in code\n3. Set up backend (see STRIPE-INTEGRATION.md)\n\nFor now, this is a demo placeholder.');
+                const { user } = useAuth();
+                if (!user || !user.email) {
+                    alert('Please log in to subscribe');
+                    return;
+                }
+                createSimpleCheckout(plan, user.email);
             };
             
             return (
