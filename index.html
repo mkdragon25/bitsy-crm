@@ -1386,24 +1386,6 @@
             }
 
 
-            const handleJobClick = (job) => {
-                setSelectedJob(job);
-                setShowDetailPage(true);
-            };
-
-            if (showDetailPage && selectedJob) {
-                return (
-                    <JobDetailPage 
-                        jobId={selectedJob.id}
-                        onClose={() => {
-                            setShowDetailPage(false);
-                            setSelectedJob(null);
-                            onUpdate();
-                        }}
-                    />
-                );
-            }
-
             return (
                 <div>
                     <div className="flex justify-between items-center mb-8">
@@ -1946,7 +1928,6 @@
                 return customer ? customer.name : 'Unknown';
             };
 
-
             const handleJobClick = (job) => {
                 setSelectedJob(job);
                 setShowDetailPage(true);
@@ -2038,24 +2019,6 @@
         const TeamView = ({ teamMembers, organization, onUpdate }) => {
             const [showInviteModal, setShowInviteModal] = useState(false);
 
-
-            const handleJobClick = (job) => {
-                setSelectedJob(job);
-                setShowDetailPage(true);
-            };
-
-            if (showDetailPage && selectedJob) {
-                return (
-                    <JobDetailPage 
-                        jobId={selectedJob.id}
-                        onClose={() => {
-                            setShowDetailPage(false);
-                            setSelectedJob(null);
-                            onUpdate();
-                        }}
-                    />
-                );
-            }
 
             return (
                 <div>
