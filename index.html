@@ -344,7 +344,7 @@
             const success = urlParams.get('success');
             
             if (success === 'true') {
-                alert('ðŸŽ‰ Payment successful! Your subscription is now active. Refreshing...');
+                alert('🎉 Payment successful! Your subscription is now active. Refreshing...');
                 window.history.replaceState({}, document.title, window.location.pathname);
                 setTimeout(() => window.location.reload(), 1000);
             }
@@ -515,7 +515,7 @@
                             </h1>
                             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
                                 The affordable CRM designed specifically for service businesses with under 50 employees. 
-                                Manage customers, track jobs, and grow your businessâ€”without the enterprise price tag.
+                                Manage customers, track jobs, and grow your business—without the enterprise price tag.
                             </p>
                             <button 
                                 onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
@@ -730,7 +730,7 @@
                                 {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
                             </h2>
                             <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">
-                                Ã—
+                                ×
                             </button>
                         </div>
 
@@ -779,7 +779,7 @@
                                 <input
                                     type="password"
                                     className="input-field"
-                                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                                    placeholder="••••••••"
                                     value={formData.password}
                                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                                     required
@@ -1095,11 +1095,11 @@
                     <div className="max-w-7xl mx-auto">
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <button onClick={onClose} className="text-gray-400 hover:text-white mb-4 flex items-center gap-2">â† Back to Customers</button>
+                                <button onClick={onClose} className="text-gray-400 hover:text-white mb-4 flex items-center gap-2">← Back to Customers</button>
                                 <h1 className="heading-font text-4xl font-bold mb-2">{customer.name}</h1>
                                 <div className="flex gap-4 text-gray-400 text-sm">
-                                    {customer.email && <span>ðŸ“§ {customer.email}</span>}
-                                    {customer.phone && <span>ðŸ“ž {customer.phone}</span>}
+                                    {customer.email && <span>📧 {customer.email}</span>}
+                                    {customer.phone && <span>📞 {customer.phone}</span>}
                                 </div>
                             </div>
                             <button onClick={() => setShowEditModal(true)} className="btn-primary">Edit</button>
@@ -1955,7 +1955,7 @@
             };
 
             const deleteOrganization = async (orgId, orgName) => {
-                if (!confirm(`âš ï¸ DELETE "${orgName}"?\n\nThis will permanently delete ALL data.\nType DELETE to confirm.`)) {
+                if (!confirm(`⚠️ DELETE "${orgName}"?\n\nThis will permanently delete ALL data.\nType DELETE to confirm.`)) {
                     return;
                 }
                 const confirmation = prompt('Type DELETE to confirm:');
@@ -1997,7 +1997,7 @@
                 return (
                     <div className="min-h-screen flex items-center justify-center p-6">
                         <div className="glass-card p-8 max-w-md text-center">
-                            <div className="text-6xl mb-4">ðŸ”’</div>
+                            <div className="text-6xl mb-4">🔒</div>
                             <h2 className="text-2xl font-bold mb-3">Access Denied</h2>
                             <p className="text-gray-400">You don't have admin privileges.</p>
                             <button onClick={() => window.location.hash = ''} className="btn-primary mt-6">
@@ -2018,14 +2018,14 @@
                                     <p className="text-gray-400">Manage all organizations and system settings</p>
                                 </div>
                                 <button onClick={() => window.location.hash = ''} className="btn-secondary">
-                                    â† Back to App
+                                    ← Back to App
                                 </button>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                             <div className="glass-card p-6 stat-card">
-                                <div className="text-2xl mb-2">ðŸ¢</div>
+                                <div className="text-2xl mb-2">🏢</div>
                                 <div className="text-3xl font-bold">{stats.totalOrgs}</div>
                                 <div className="text-gray-400 text-sm">Organizations</div>
                             </div>
@@ -2040,7 +2040,7 @@
                                 <div className="text-gray-400 text-sm">Active Subs</div>
                             </div>
                             <div className="glass-card p-6 stat-card">
-                                <div className="text-2xl mb-2">ðŸ†“</div>
+                                <div className="text-2xl mb-2">🆓</div>
                                 <div className="text-3xl font-bold">{stats.trialOrgs}</div>
                                 <div className="text-gray-400 text-sm">Trial Accounts</div>
                             </div>
@@ -2075,7 +2075,7 @@
                                             <div>
                                                 <div className="font-bold">{org.name}</div>
                                                 <div className="text-sm text-gray-400">
-                                                    {org.plan} â€¢ {org.subscription_status} â€¢ 
+                                                    {org.plan} • {org.subscription_status} • 
                                                     {new Date(org.created_at).toLocaleDateString()}
                                                 </div>
                                             </div>
@@ -2157,7 +2157,7 @@
                                             <div>
                                                 <div className="font-bold">{admin.email}</div>
                                                 <div className="text-sm text-gray-400">
-                                                    {admin.role} â€¢ Created {new Date(admin.created_at).toLocaleDateString()}
+                                                    {admin.role} • Created {new Date(admin.created_at).toLocaleDateString()}
                                                 </div>
                                             </div>
                                             <span className={`badge ${admin.is_active ? 'badge-success' : 'badge-error'}`}>
