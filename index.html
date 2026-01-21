@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitsy CRM - Simple CRM for Small Service Businesses</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -10,7 +11,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://js.stripe.com/v3/"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Zodiak:wght@400;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -515,7 +515,7 @@
                             </h1>
                             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
                                 The affordable CRM designed specifically for service businesses with under 50 employees. 
-                                Manage customers, track jobs, and grow your business-without the enterprise price tag.
+                                Manage customers, track jobs, and grow your businessâ€”without the enterprise price tag.
                             </p>
                             <button 
                                 onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
@@ -904,18 +904,18 @@
 
                         <nav className="flex-1 py-4">
                             {[
-                                { id: 'dashboard', label: 'Dashboard', icon: 'chart-line' },
-                                { id: 'customers', label: 'Customers', icon: 'users' },
-                                { id: 'jobs', label: 'Jobs', icon: 'clipboard-list' },
-                                { id: 'team', label: 'Team', icon: 'user-friends' },
-                                { id: 'settings', label: 'Settings', icon: 'cog' }
+                                { id: 'dashboard', label: 'Dashboard', icon: 'ðŸ“Š' },
+                                { id: 'customers', label: 'Customers', icon: 'ðŸ‘¥' },
+                                { id: 'jobs', label: 'Jobs', icon: 'ðŸ“‹' },
+                                { id: 'team', label: 'Team', icon: 'ðŸ¤' },
+                                { id: 'settings', label: 'Settings', icon: 'âš™ï¸' }
                             ].map(item => (
                                 <div
                                     key={item.id}
                                     className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
                                     onClick={() => setActiveTab(item.id)}
                                 >
-                                    <span className="text-xl"><i className={`fas fa-${item.icon}`}></i></span>
+                                    <span className="text-xl">{item.icon}</span>
                                     <span>{item.label}</span>
                                 </div>
                             ))}
@@ -955,22 +955,22 @@
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2"><i className="fas fa-users"></i></div>
+                            <div className="text-3xl mb-2">ðŸ‘¥</div>
                             <div className="text-3xl font-bold mb-1">{stats.totalCustomers}</div>
                             <div className="text-gray-400 text-sm">Total Customers</div>
                         </div>
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2"><i className="fas fa-clipboard-list"></i></div>
+                            <div className="text-3xl mb-2">ðŸ“‹</div>
                             <div className="text-3xl font-bold mb-1">{stats.activeJobs}</div>
                             <div className="text-gray-400 text-sm">Active Jobs</div>
                         </div>
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2"><i className="fas fa-check-circle"></i></div>
+                            <div className="text-3xl mb-2">âœ…</div>
                             <div className="text-3xl font-bold mb-1">{stats.completedJobs}</div>
                             <div className="text-gray-400 text-sm">Completed Jobs</div>
                         </div>
                         <div className="glass-card p-6 stat-card">
-                            <div className="text-3xl mb-2"><i className="fas fa-dollar-sign"></i></div>
+                            <div className="text-3xl mb-2">ðŸ’°</div>
                             <div className="text-3xl font-bold mb-1">${stats.revenue.toLocaleString()}</div>
                             <div className="text-gray-400 text-sm">Total Revenue</div>
                         </div>
@@ -2030,12 +2030,12 @@
                                 <div className="text-gray-400 text-sm">Organizations</div>
                             </div>
                             <div className="glass-card p-6 stat-card">
-                                <div className="text-2xl mb-2"><i className="fas fa-users"></i></div>
+                                <div className="text-2xl mb-2">ðŸ‘¥</div>
                                 <div className="text-3xl font-bold">{stats.totalCustomers}</div>
                                 <div className="text-gray-400 text-sm">Total Customers</div>
                             </div>
                             <div className="glass-card p-6 stat-card">
-                                <div className="text-2xl mb-2"><i className="fas fa-check-circle"></i></div>
+                                <div className="text-2xl mb-2">âœ…</div>
                                 <div className="text-3xl font-bold">{stats.activeSubscriptions}</div>
                                 <div className="text-gray-400 text-sm">Active Subs</div>
                             </div>
@@ -2045,7 +2045,7 @@
                                 <div className="text-gray-400 text-sm">Trial Accounts</div>
                             </div>
                             <div className="glass-card p-6 stat-card">
-                                <div className="text-2xl mb-2"><i className="fas fa-dollar-sign"></i></div>
+                                <div className="text-2xl mb-2">ðŸ’°</div>
                                 <div className="text-3xl font-bold">${stats.mrr}</div>
                                 <div className="text-gray-400 text-sm">MRR</div>
                             </div>
