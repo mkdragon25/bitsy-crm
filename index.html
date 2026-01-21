@@ -1385,6 +1385,25 @@
                 );
             }
 
+
+            const handleJobClick = (job) => {
+                setSelectedJob(job);
+                setShowDetailPage(true);
+            };
+
+            if (showDetailPage && selectedJob) {
+                return (
+                    <JobDetailPage 
+                        jobId={selectedJob.id}
+                        onClose={() => {
+                            setShowDetailPage(false);
+                            setSelectedJob(null);
+                            onUpdate();
+                        }}
+                    />
+                );
+            }
+
             return (
                 <div>
                     <div className="flex justify-between items-center mb-8">
@@ -1569,8 +1588,332 @@
         };
 
         // Jobs View (Simplified)
-        const JobsView = ({ jobs, customers, organization, onUpdate }) => {
+        // ============================================
+        // JOB DETAIL PAGE COMPONENT
+        // ============================================
+        const JobDetailPage = ({ jobId, onClose }) => {
+            const { user } = useAuth();
+            const [job, setJob] = useState(null);
+            const [customer, setCustomer] = useState(null);
+            const [notes, setNotes] = useState([]);
+            const [transactions, setTransactions] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [showEditModal, setShowEditModal] = useState(false);
+            const [newNote, setNewNote] = useState('');
+            const [savingNote, setSavingNote] = useState(false);
+            const [organization, setOrganization] = useState(null);
+
+            useEffect(() => {
+                loadJobData();
+            }, [jobId]);
+
+            const loadJobData = async () => {
+                setLoading(true);
+                try {
+                    const { data: orgData } = await supabase.from('organizations').select('*').eq('owner_id', user.id).single();
+                    setOrganization(orgData);
+
+                    const { data: jobData } = await supabase.from('jobs').select('*').eq('id', jobId).single();
+                    setJob(jobData);
+
+                    if (jobData.customer_id) {
+                        const { data: customerData } = await supabase.from('customers').select('*').eq('id', jobData.customer_id).single();
+                        setCustomer(customerData);
+                    }
+
+                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false });
+                    setNotes(notesData || []);
+
+                    const { data: transactionsData } = await supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false });
+                    setTransactions(transactionsData || []);
+                } catch (err) {
+                    console.error('Error loading job:', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleStatusChange = async (newStatus) => {
+                try {
+                    const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', jobId);
+                    if (error) throw error;
+                    setJob({...job, status: newStatus});
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            const handleAddNote = async () => {
+                if (!newNote.trim()) return;
+                setSavingNote(true);
+                try {
+                    const { error } = await supabase.from('customer_notes').insert({
+                        organization_id: organization.id,
+                        customer_id: job.customer_id,
+                        created_by: user.id,
+                        note_text: `[Job: ${job.title}] ${newNote}`
+                    });
+                    if (error) throw error;
+                    setNewNote('');
+                    loadJobData();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                } finally {
+                    setSavingNote(false);
+                }
+            };
+
+            const handleDeleteNote = async (noteId) => {
+                if (!confirm('Delete this note?')) return;
+                try {
+                    const { error } = await supabase.from('customer_notes').delete().eq('id', noteId);
+                    if (error) throw error;
+                    loadJobData();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            const getStatusBadge = (status) => {
+                const badges = {
+                    pending: 'badge-warning',
+                    in_progress: 'badge-info',
+                    completed: 'badge-success',
+                    invoiced: 'badge-info',
+                    paid: 'badge-success',
+                    cancelled: 'badge-error'
+                };
+                return badges[status] || 'badge-warning';
+            };
+
+            const getPriorityBadge = (priority) => {
+                const badges = {
+                    low: 'badge-success',
+                    medium: 'badge-info',
+                    high: 'badge-warning',
+                    urgent: 'badge-error'
+                };
+                return badges[priority] || 'badge-info';
+            };
+
+            if (loading) {
+                return React.createElement('div', { className: 'min-h-screen flex items-center justify-center' },
+                    React.createElement('div', { className: 'text-2xl' }, 'Loading...')
+                );
+            }
+
+            if (!job) {
+                return React.createElement('div', { className: 'min-h-screen flex items-center justify-center p-6' },
+                    React.createElement('div', { className: 'glass-card p-8 text-center' },
+                        React.createElement('h2', { className: 'text-2xl font-bold mb-4' }, 'Job Not Found'),
+                        React.createElement('button', { onClick: onClose, className: 'btn-primary' }, 'Go Back')
+                    )
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-[#0a0a0f] p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <button onClick={onClose} className="text-gray-400 hover:text-white mb-4 flex items-center gap-2">← Back to Jobs</button>
+                                <h1 className="heading-font text-4xl font-bold mb-2">{job.title}</h1>
+                                <div className="flex gap-3 mb-4">
+                                    <span className={`badge ${getStatusBadge(job.status)}`}>{job.status.replace('_', ' ')}</span>
+                                    <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority}</span>
+                                </div>
+                                {customer && (
+                                    <div className="text-gray-400">Customer: <span className="text-white font-medium">{customer.name}</span></div>
+                                )}
+                            </div>
+                            <button onClick={() => setShowEditModal(true)} className="btn-primary">Edit Job</button>
+                        </div>
+
+                        {/* Quick Status Actions */}
+                        <div className="glass-card p-6 mb-8">
+                            <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
+                            <div className="flex gap-3 flex-wrap">
+                                <button onClick={() => handleStatusChange('pending')} className={`btn-${job.status === 'pending' ? 'primary' : 'secondary'} text-sm`}>
+                                    Mark Pending
+                                </button>
+                                <button onClick={() => handleStatusChange('in_progress')} className={`btn-${job.status === 'in_progress' ? 'primary' : 'secondary'} text-sm`}>
+                                    Mark In Progress
+                                </button>
+                                <button onClick={() => handleStatusChange('completed')} className={`btn-${job.status === 'completed' ? 'primary' : 'secondary'} text-sm`}>
+                                    Mark Completed
+                                </button>
+                                <button onClick={() => handleStatusChange('invoiced')} className={`btn-${job.status === 'invoiced' ? 'primary' : 'secondary'} text-sm`}>
+                                    Mark Invoiced
+                                </button>
+                                <button onClick={() => handleStatusChange('paid')} className={`btn-${job.status === 'paid' ? 'primary' : 'secondary'} text-sm`}>
+                                    Mark Paid
+                                </button>
+                                <button onClick={() => handleStatusChange('cancelled')} className={`btn-${job.status === 'cancelled' ? 'secondary' : 'secondary'} text-sm`}>
+                                    Cancel Job
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Job Details */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            <div className="glass-card p-6">
+                                <h2 className="text-xl font-bold mb-4">Job Details</h2>
+                                <div className="space-y-3">
+                                    <div><div className="text-sm text-gray-400">Description</div><div>{job.description || '-'}</div></div>
+                                    <div><div className="text-sm text-gray-400">Value</div><div className="text-green-400 font-bold">${parseFloat(job.value || 0).toFixed(2)}</div></div>
+                                    <div><div className="text-sm text-gray-400">Scheduled Date</div><div>{job.scheduled_date ? new Date(job.scheduled_date).toLocaleDateString() : '-'}</div></div>
+                                    <div><div className="text-sm text-gray-400">Created</div><div>{new Date(job.created_at).toLocaleDateString()}</div></div>
+                                </div>
+                            </div>
+                            {customer && (
+                                <div className="glass-card p-6">
+                                    <h2 className="text-xl font-bold mb-4">Customer Info</h2>
+                                    <div className="space-y-3">
+                                        <div><div className="text-sm text-gray-400">Name</div><div>{customer.name}</div></div>
+                                        <div><div className="text-sm text-gray-400">Email</div><div>{customer.email || '-'}</div></div>
+                                        <div><div className="text-sm text-gray-400">Phone</div><div>{customer.phone || '-'}</div></div>
+                                        <div><div className="text-sm text-gray-400">Address</div><div>{customer.address || '-'}</div></div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Job Notes */}
+                        <div className="glass-card p-6 mb-8">
+                            <h2 className="text-2xl font-bold mb-6">Job Notes</h2>
+                            <div className="mb-6">
+                                <textarea 
+                                    className="input-field" 
+                                    rows="3" 
+                                    placeholder="Add a note about this job..." 
+                                    value={newNote} 
+                                    onChange={(e) => setNewNote(e.target.value)} 
+                                />
+                                <button onClick={handleAddNote} disabled={savingNote} className="btn-primary mt-2">
+                                    {savingNote ? 'Saving...' : 'Add Note'}
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                {notes.filter(n => n.note_text.includes(`[Job: ${job.title}]`)).map(note => (
+                                    <div key={note.id} className="glass-card p-4">
+                                        <div className="flex justify-between">
+                                            <div className="flex-1">
+                                                <div className="text-sm text-gray-400 mb-2">{new Date(note.created_at).toLocaleString()}</div>
+                                                <div>{note.note_text.replace(`[Job: ${job.title}] `, '')}</div>
+                                            </div>
+                                            <button onClick={() => handleDeleteNote(note.id)} className="text-red-400 text-sm ml-4">Delete</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {notes.filter(n => n.note_text.includes(`[Job: ${job.title}]`)).length === 0 && (
+                                    <div className="text-center text-gray-400 py-8">No notes for this job yet</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {showEditModal && (
+                            <EditJobModal 
+                                job={job} 
+                                customers={[customer]} 
+                                onClose={() => setShowEditModal(false)} 
+                                onSuccess={() => { 
+                                    setShowEditModal(false); 
+                                    loadJobData(); 
+                                }} 
+                            />
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Edit Job Modal
+        const EditJobModal = ({ job, customers, onClose, onSuccess }) => {
+            const [formData, setFormData] = useState({
+                title: job.title || '',
+                description: job.description || '',
+                status: job.status || 'pending',
+                priority: job.priority || 'medium',
+                value: job.value || '',
+                scheduled_date: job.scheduled_date || ''
+            });
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const { error } = await supabase.from('jobs').update({
+                        ...formData,
+                        value: formData.value ? parseFloat(formData.value) : 0
+                    }).eq('id', job.id);
+                    if (error) throw error;
+                    alert('Job updated!');
+                    onSuccess();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h2 className="heading-font text-2xl font-bold mb-6">Edit Job</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Title *</label>
+                                <input type="text" className="input-field" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Description</label>
+                                <textarea className="input-field" rows="3" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Status</label>
+                                    <select className="input-field" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                                        <option value="pending">Pending</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="invoiced">Invoiced</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Priority</label>
+                                    <select className="input-field" value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})}>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Value ($)</label>
+                                <input type="number" step="0.01" className="input-field" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Scheduled Date</label>
+                                <input type="date" className="input-field" value={formData.scheduled_date} onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})} />
+                            </div>
+                            <div className="flex gap-4">
+                                <button type="submit" className="btn-primary flex-1" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</button>
+                                <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+                const JobsView = ({ jobs, customers, organization, onUpdate }) => {
             const [showCreateModal, setShowCreateModal] = useState(false);
+            const [showDetailPage, setShowDetailPage] = useState(false);
+            const [selectedJob, setSelectedJob] = useState(null);
             const [filter, setFilter] = useState('all');
 
             const filteredJobs = jobs.filter(job => {
@@ -1603,6 +1946,25 @@
                 return customer ? customer.name : 'Unknown';
             };
 
+
+            const handleJobClick = (job) => {
+                setSelectedJob(job);
+                setShowDetailPage(true);
+            };
+
+            if (showDetailPage && selectedJob) {
+                return (
+                    <JobDetailPage 
+                        jobId={selectedJob.id}
+                        onClose={() => {
+                            setShowDetailPage(false);
+                            setSelectedJob(null);
+                            onUpdate();
+                        }}
+                    />
+                );
+            }
+
             return (
                 <div>
                     <div className="flex justify-between items-center mb-8">
@@ -1619,7 +1981,7 @@
 
                     <div className="space-y-4">
                         {filteredJobs.map(job => (
-                            <div key={job.id} className="glass-card p-6">
+                            <div key={job.id} className="glass-card p-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleJobClick(job)}>
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1">
                                         <h3 className="text-xl font-bold mb-2">{job.title}</h3>
@@ -1637,6 +1999,15 @@
                                     <div className="flex flex-col items-end gap-2">
                                         <span className={`badge ${getStatusBadge(job.status)}`}>{job.status.replace('_', ' ')}</span>
                                         <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority}</span>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleJobClick(job);
+                                            }}
+                                            className="btn-primary text-sm px-4 py-2 mt-2"
+                                        >
+                                            View Details
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1666,6 +2037,25 @@
         // Team View (Simplified)
         const TeamView = ({ teamMembers, organization, onUpdate }) => {
             const [showInviteModal, setShowInviteModal] = useState(false);
+
+
+            const handleJobClick = (job) => {
+                setSelectedJob(job);
+                setShowDetailPage(true);
+            };
+
+            if (showDetailPage && selectedJob) {
+                return (
+                    <JobDetailPage 
+                        jobId={selectedJob.id}
+                        onClose={() => {
+                            setShowDetailPage(false);
+                            setSelectedJob(null);
+                            onUpdate();
+                        }}
+                    />
+                );
+            }
 
             return (
                 <div>
