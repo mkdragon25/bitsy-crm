@@ -567,7 +567,7 @@
                                     }
                                 ].map((feature, idx) => (
                                     <div key={idx} className="glass-card p-8 feature-card">
-                                        <div className="text-5xl mb-4">{feature.icon}</div>
+                                        <div className="text-5xl mb-4" dangerouslySetInnerHTML={{__html: feature.icon}}></div>
                                         <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
                                         <p className="text-gray-400">{feature.description}</p>
                                     </div>
@@ -915,7 +915,7 @@
                                     className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
                                     onClick={() => setActiveTab(item.id)}
                                 >
-                                    <span className="text-xl">{item.icon}</span>
+                                    <span className="text-xl" dangerouslySetInnerHTML={{__html: item.icon}}></span>
                                     <span>{item.label}</span>
                                 </div>
                             ))}
