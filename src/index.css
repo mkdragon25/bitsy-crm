@@ -268,3 +268,87 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+/* ============================================
+   MOBILE RESPONSIVE
+   ============================================ */
+
+/* Sidebar responsive */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    width: 16rem !important;
+  }
+
+  /* Stack grids on mobile */
+  .grid.md\:grid-cols-2,
+  .grid.md\:grid-cols-3,
+  .grid.md\:grid-cols-4 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Smaller headings on mobile */
+  .heading-font.text-4xl {
+    font-size: 1.75rem;
+  }
+
+  /* Pricing table scroll on mobile */
+  .overflow-x-auto {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal full width on mobile */
+  .modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 1rem;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Touch friendly buttons */
+  .btn-primary, .btn-secondary {
+    min-height: 44px;
+  }
+
+  /* Nav items bigger on mobile */
+  .nav-item {
+    padding: 0.875rem 1.25rem;
+  }
+
+  /* Stat cards 2 col on mobile */
+  .grid.lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Pipeline horizontal scroll */
+  .pipeline-board {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Table responsive */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Calendar responsive */
+@media (max-width: 480px) {
+  .grid.grid-cols-7 {
+    gap: 2px;
+  }
+
+  .aspect-square {
+    font-size: 0.7rem;
+  }
+}
+
+/* Smooth transitions */
+.translate-x-0 { transform: translateX(0); }
+.-translate-x-full { transform: translateX(-100%); }
+
+@media (min-width: 768px) {
+  .md\:translate-x-0 { transform: translateX(0) !important; }
+}
+
