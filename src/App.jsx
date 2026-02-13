@@ -1668,32 +1668,42 @@ const AuthContext = createContext();
 
         // Add Customer Modal
         const AddCustomerModal = ({ organizationId, onClose, onSuccess }) => {
-            const [formData, setFormData] = useState({
-                name: '',
-                email: '',
-                phone: '',
-                address: '',
-                notes: ''
-            });
+            const [name, setName] = useState('');
+            const [email, setEmail] = useState('');
+            const [phone, setPhone] = useState('');
+            const [address, setAddress] = useState('');
+            const [notes, setNotes] = useState('');
             const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
 
-            const handleSubmit = async (e) => {
-                e.preventDefault();
+            const handleSubmit = async () => {
+                if (!name.trim()) {
+                    setError('Name is required');
+                    return;
+                }
                 setLoading(true);
-
+                setError('');
                 try {
-                    const { error } = await supabase
+                    const { data, error: dbError } = await supabase
                         .from('customers')
                         .insert({
-                            ...formData,
+                            name: name.trim(),
+                            email: email.trim(),
+                            phone: phone.trim(),
+                            address: address.trim(),
+                            notes: notes.trim(),
                             organization_id: organizationId
-                        });
+                        })
+                        .select();
 
-                    if (error) throw error;
+                    if (dbError) {
+                        setError(dbError.message);
+                        setLoading(false);
+                        return;
+                    }
                     onSuccess();
                 } catch (err) {
-                    alert(err.message);
-                } finally {
+                    setError(err.message || 'Something went wrong');
                     setLoading(false);
                 }
             };
@@ -1702,15 +1712,22 @@ const AuthContext = createContext();
                 <div className="modal-overlay" onClick={onClose}>
                     <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Add New Customer</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+
+                        {error && (
+                            <div className="bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium mb-2">Name *</label>
                                 <input
                                     type="text"
                                     className="input-field"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                    required
+                                    placeholder="Customer name"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -1718,8 +1735,9 @@ const AuthContext = createContext();
                                 <input
                                     type="email"
                                     className="input-field"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    placeholder="email@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -1727,8 +1745,9 @@ const AuthContext = createContext();
                                 <input
                                     type="tel"
                                     className="input-field"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                    placeholder="Phone number"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -1736,8 +1755,9 @@ const AuthContext = createContext();
                                 <input
                                     type="text"
                                     className="input-field"
-                                    value={formData.address}
-                                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                    placeholder="Street address"
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
                                 />
                             </div>
                             <div>
@@ -1745,19 +1765,24 @@ const AuthContext = createContext();
                                 <textarea
                                     className="input-field"
                                     rows="3"
-                                    value={formData.notes}
-                                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                    placeholder="Any notes about this customer..."
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
                                 />
                             </div>
-                            <div className="flex gap-4">
-                                <button type="submit" className="btn-primary flex-1" disabled={loading}>
+                            <div className="flex gap-4 pt-2">
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                    className="btn-primary flex-1"
+                                >
                                     {loading ? 'Adding...' : 'Add Customer'}
                                 </button>
-                                <button type="button" onClick={onClose} className="btn-secondary flex-1">
+                                <button onClick={onClose} className="btn-secondary flex-1">
                                     Cancel
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             );
