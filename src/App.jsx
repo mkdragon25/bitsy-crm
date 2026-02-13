@@ -8,6 +8,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Stripe Dashboard → Payment Links → Create → Copy URL
 // Looks like: https://buy.stripe.com/xxxxxxxxx
 const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/4gM14p0Hc2voe42g7T8og00';
+const STRIPE_TEAM_PAYMENT_LINK = 'https://buy.stripe.com/4gMbJ3ey25HA7FE4pb8og01';
 const PRICE_PER_USER = 27.00;
 
 // Initialize clients
@@ -2245,7 +2246,7 @@ const AuthContext = createContext();
                     }));
                     
                     // Redirect to Stripe Payment Link for new team member
-                    const paymentUrl = `${STRIPE_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(formData.email)}&client_reference_id=${encodeURIComponent('team_member_' + formData.email)}`;
+                    const paymentUrl = `${STRIPE_TEAM_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(formData.email)}&client_reference_id=${encodeURIComponent('team_member_' + formData.email)}`;
                     window.location.href = paymentUrl;
                     
                     onSuccess(); // Close modal
