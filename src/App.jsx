@@ -4,13 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 // Configuration
 const SUPABASE_URL = 'https://qitdxswxhwwfckmlzkal.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpdGR4c3d4aHd3ZmNrbWx6a2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NjIwOTIsImV4cCI6MjA4NjEzODA5Mn0.p42DcMr1zgYH1z_N7LXXNtG11KBj8VWvng8bVvw2dQQ';
-const STRIPE_PUBLISHABLE_KEY = 'pk_live_51SqjuWRgjDoUT1PoY0WYacAr0uDyXxsIgXRtGaa4RFkbEP6oJ00fuuOBA925EP7Hh9yQv4styGJ98vwxQV5sfdFd007WacumLl';
-const STRIPE_PRICE_ID = 'price_1Syk5xRgjDoUT1Porao87YnC';
+// ⚠️  REPLACE with your Stripe Payment Link URL
+// Stripe Dashboard → Payment Links → Create → Copy URL
+// Looks like: https://buy.stripe.com/xxxxxxxxx
+const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/4gM14p0Hc2voe42g7T8og00';
 const PRICE_PER_USER = 27.00;
 
 // Initialize clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const stripe = typeof window !== 'undefined' && window.Stripe ? window.Stripe(STRIPE_PUBLISHABLE_KEY) : null;
 
 const AuthContext = createContext();
 
@@ -417,20 +418,9 @@ const AuthContext = createContext();
                             plan: formData.plan
                         }));
                         
-                        // Redirect to Stripe checkout
-                        const { error } = await stripe.redirectToCheckout({
-                            lineItems: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-                            mode: 'subscription',
-                            successUrl: window.location.origin + '/?payment=success',
-                            cancelUrl: window.location.origin + '/?payment=canceled',
-                            customerEmail: formData.email,
-                            clientReferenceId: formData.email
-                        });
-                        
-                        if (error) {
-                            setError(error.message);
-                            setLoading(false);
-                        }
+                        // Redirect to Stripe Payment Link
+                        const paymentUrl = `${STRIPE_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(formData.email)}&client_reference_id=${encodeURIComponent(formData.email)}`;
+                        window.location.href = paymentUrl;
                     } else {
                         await signIn(formData.email, formData.password);
                         onClose();
@@ -2254,20 +2244,9 @@ const AuthContext = createContext();
                         organizationId: organizationId
                     }));
                     
-                    // Redirect to Stripe to add another user
-                    const { error } = await stripe.redirectToCheckout({
-                        lineItems: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-                        mode: 'subscription',
-                        successUrl: window.location.origin + '/?team_member=success',
-                        cancelUrl: window.location.origin + '/?team_member=canceled',
-                        customerEmail: formData.email,
-                        clientReferenceId: `team_member_${formData.email}`
-                    });
-                    
-                    if (error) {
-                        alert('Payment error: ' + error.message);
-                        sessionStorage.removeItem('pending_team_member');
-                    }
+                    // Redirect to Stripe Payment Link for new team member
+                    const paymentUrl = `${STRIPE_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(formData.email)}&client_reference_id=${encodeURIComponent('team_member_' + formData.email)}`;
+                    window.location.href = paymentUrl;
                     
                     onSuccess(); // Close modal
                 } catch (err) {
