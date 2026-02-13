@@ -1553,14 +1553,20 @@ const AuthContext = createContext();
 
             return (
                 <div>
-                    <div className="flex justify-between items-center mb-8">
+                    <div className="flex justify-between items-center mb-8 flex-wrap gap-3">
                         <h1 className="heading-font text-4xl font-bold">Customers</h1>
-                        <button 
-                            className="btn-primary"
-                            onClick={() => setShowAddModal(true)}
-                        >
-                            Add Customer
-                        </button>
+                        <div className="flex gap-3 flex-wrap">
+                            <label className="btn-secondary cursor-pointer">
+                                📂 Import CSV
+                                <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+                            </label>
+                            <button 
+                                className="btn-primary"
+                                onClick={() => setShowAddModal(true)}
+                            >
+                                + Add Customer
+                            </button>
+                        </div>
                     </div>
 
                     <div className="glass-card p-6 mb-6">
@@ -1632,6 +1638,29 @@ const AuthContext = createContext();
                                 onUpdate();
                             }}
                         />
+                    )}
+
+                    {importPreview && (
+                        <div className="modal-overlay" onClick={() => setImportPreview(null)}>
+                            <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+                                <h2 className="heading-font text-2xl font-bold mb-4">Import Preview ({importPreview.length} customers)</h2>
+                                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                                    {importPreview.slice(0, 10).map((row, i) => (
+                                        <div key={i} className="glass-card p-3 text-sm">
+                                            <div className="font-medium">{row.name || row['full name'] || '(no name)'}</div>
+                                            <div className="text-gray-400">{row.email} {row.phone ? '· ' + row.phone : ''}</div>
+                                        </div>
+                                    ))}
+                                    {importPreview.length > 10 && <div className="text-gray-400 text-sm">...and {importPreview.length - 10} more</div>}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={confirmImport} disabled={importing} className="btn-primary flex-1">
+                                        {importing ? 'Importing...' : `Import ${importPreview.length} Customers`}
+                                    </button>
+                                    <button onClick={() => setImportPreview(null)} className="btn-secondary">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             );
@@ -2655,6 +2684,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
         // Settings View with Billing
         const SettingsView = ({ organization, onUpdate }) => {
+            const { user } = useAuth();
             const [activeSettingsTab, setActiveSettingsTab] = useState('general');
             
             const getSubscriptionStatus = () => {
@@ -2667,13 +2697,10 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                 }
             };
             
-            const handleUpgrade = (plan) => {
-                const { user } = useAuth();
-                if (!user || !user.email) {
-                    alert('Please log in to subscribe');
-                    return;
-                }
-                createSimpleCheckout(plan, user.email);
+            const handleManageBilling = () => {
+                const email = user?.email || '';
+                const url = `${STRIPE_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(email)}`;
+                window.open(url, '_blank');
             };
             
             return (
@@ -2729,11 +2756,11 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                         </span>
                                     </div>
                                 </div>
-                                <button onClick={() => alert('Stripe Customer Portal: Configure in Stripe Dashboard')} className="btn-primary">
+                                <button onClick={handleManageBilling} className="btn-primary">
                                     Manage Subscription
                                 </button>
-                                <div className="bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-3 rounded-lg text-sm">
-                                    <strong>Payment Setup Required:</strong> Follow STRIPE-INTEGRATION.md to enable billing
+                                <div className="bg-[#5856d6]/10 border border-[#5856d6]/30 text-[#5856d6] px-4 py-3 rounded-lg text-sm">
+                                    <strong>$27/user/month</strong> — Add team members from the Team tab
                                 </div>
                             </div>
                         </div>
@@ -2742,10 +2769,6 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             );
         };
 
-        // Super Admin Dashboard Component
-        ;
-
-        // Main App Component
         // ============================================
         // REPORTS VIEW
         // ============================================
