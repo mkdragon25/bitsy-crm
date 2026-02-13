@@ -916,9 +916,11 @@ const AuthContext = createContext();
         const Dashboard = () => {
             const { user, organization, isSuperAdmin, signOut } = useAuth();
             const [activeTab, setActiveTab] = useState('dashboard');
+            const [sidebarOpen, setSidebarOpen] = useState(false);
             const [customers, setCustomers] = useState([]);
             const [jobs, setJobs] = useState([]);
             const [teamMembers, setTeamMembers] = useState([]);
+            const [tasks, setTasks] = useState([]);
             const [stats, setStats] = useState({
                 totalCustomers: 0,
                 activeJobs: 0,
@@ -954,6 +956,13 @@ const AuthContext = createContext();
                     .eq('organization_id', organization.id);
                 setTeamMembers(teamData || []);
 
+                // Load tasks for calendar
+                const { data: tasksData } = await supabase
+                    .from('tasks')
+                    .select('*')
+                    .eq('organization_id', organization.id);
+                setTasks(tasksData || []);
+
                 // Calculate stats
                 setStats({
                     totalCustomers: customersData?.length || 0,
@@ -977,6 +986,10 @@ const AuthContext = createContext();
                         return <TasksView organization={organization} onUpdate={loadData} />;
                     case 'team':
                         return <TeamView teamMembers={teamMembers} organization={organization} onUpdate={loadData} />;
+                    case 'reports':
+                        return <ReportsView customers={customers} jobs={jobs} tasks={tasks} />;
+                    case 'calendar':
+                        return <CalendarView tasks={tasks} jobs={jobs} onUpdate={loadData} />;
                     case 'settings':
                         return <SettingsView organization={organization} onUpdate={loadData} />;
                     default:
@@ -985,9 +998,13 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="flex h-screen bg-[#0a0a0f]">
+                <div className="flex h-screen bg-[#0a0a0f] overflow-hidden">
+                    {/* Mobile overlay */}
+                    {sidebarOpen && (
+                        <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
+                    )}
                     {/* Sidebar */}
-                    <div className="dashboard-sidebar w-64 flex flex-col">
+                    <div className={`dashboard-sidebar flex flex-col fixed md:relative z-30 h-full transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`} style={{width: '16rem'}}>
                         <div className="p-6 border-b border-gray-800">
                             <div className="heading-font text-2xl font-bold">
                                 Bitsy<span className="text-[#5856d6]">CRM</span>
@@ -1003,6 +1020,8 @@ const AuthContext = createContext();
                                 { id: 'jobs', label: 'Jobs', icon: '&#128203;' },
                                 { id: 'tasks', label: 'Tasks', icon: '&#9745;' },
                                 { id: 'team', label: 'Team', icon: '&#129309;' },
+                                { id: 'reports', label: 'Reports', icon: '&#128202;' },
+                                { id: 'calendar', label: 'Calendar', icon: '&#128197;' },
                                 { id: 'settings', label: 'Settings', icon: '&#9881;' }
                             ].map(item => (
                                 <div
@@ -1041,8 +1060,13 @@ const AuthContext = createContext();
                     </div>
 
                     {/* Main Content */}
-                    <div className="flex-1 overflow-auto">
-                        <div className="p-8">
+                    <div className="flex-1 overflow-auto w-full">
+                        {/* Mobile header */}
+                        <div className="md:hidden flex items-center gap-4 p-4 border-b border-gray-800 sticky top-0 bg-[#0a0a0f] z-10">
+                            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">&#9776;</button>
+                            <div className="heading-font text-xl font-bold">Bitsy<span className="text-[#5856d6]">CRM</span></div>
+                        </div>
+                        <div className="p-4 md:p-8">
                             {renderContent()}
                         </div>
                     </div>
@@ -1458,6 +1482,45 @@ const AuthContext = createContext();
 
         // Customers View
         const CustomersView = ({ customers, organization, onUpdate }) => {
+            const [importing, setImporting] = useState(false);
+            const [importPreview, setImportPreview] = useState(null);
+
+            const handleCSVUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const text = evt.target.result;
+                    const lines = text.trim().split('\n');
+                    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                    const rows = lines.slice(1).map(line => {
+                        const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                        const obj = {};
+                        headers.forEach((h, i) => obj[h.toLowerCase()] = vals[i] || '');
+                        return obj;
+                    }).filter(r => r.name || r.email);
+                    setImportPreview(rows);
+                };
+                reader.readAsText(file);
+            };
+
+            const confirmImport = async () => {
+                setImporting(true);
+                for (const row of importPreview) {
+                    await supabase.from('customers').insert({
+                        organization_id: organization.id,
+                        name: row.name || row['full name'] || row['customer name'] || '',
+                        email: row.email || '',
+                        phone: row.phone || row['phone number'] || '',
+                        address: row.address || '',
+                        notes: row.notes || ''
+                    });
+                }
+                setImportPreview(null);
+                setImporting(false);
+                onUpdate();
+                alert(`✅ Imported ${importPreview.length} customers!`);
+            };
             const [showAddModal, setShowAddModal] = useState(false);
             const [showRecordPage, setShowRecordPage] = useState(false);
             const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -2683,6 +2746,287 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         ;
 
         // Main App Component
+        // ============================================
+        // REPORTS VIEW
+        // ============================================
+        const ReportsView = ({ customers, jobs, tasks }) => {
+            const completedJobs = jobs.filter(j => j.status === 'completed');
+            const activeJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'cancelled');
+            const totalRevenue = completedJobs.reduce((sum, j) => sum + (j.value || 0), 0);
+            const avgJobValue = completedJobs.length ? totalRevenue / completedJobs.length : 0;
+            const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed');
+
+            // Jobs by status
+            const jobStatuses = ['new', 'scheduled', 'in_progress', 'completed', 'cancelled'];
+            const jobsByStatus = jobStatuses.map(s => ({
+                label: s.replace('_', ' '),
+                count: jobs.filter(j => j.status === s).length,
+                color: s === 'completed' ? '#22c55e' : s === 'cancelled' ? '#ef4444' : s === 'in_progress' ? '#5856d6' : s === 'scheduled' ? '#f59e0b' : '#6b7280'
+            }));
+
+            // Revenue by month (last 6 months)
+            const months = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const label = d.toLocaleString('default', { month: 'short' });
+                const revenue = completedJobs
+                    .filter(j => j.completed_at && new Date(j.completed_at).getMonth() === d.getMonth() && new Date(j.completed_at).getFullYear() === d.getFullYear())
+                    .reduce((sum, j) => sum + (j.value || 0), 0);
+                months.push({ label, revenue });
+            }
+            const maxRevenue = Math.max(...months.map(m => m.revenue), 1);
+
+            // Tasks by priority
+            const priorities = ['urgent', 'high', 'medium', 'low'];
+            const tasksByPriority = priorities.map(p => ({
+                label: p,
+                count: tasks.filter(t => t.priority === p).length,
+                color: p === 'urgent' ? '#ef4444' : p === 'high' ? '#f59e0b' : p === 'medium' ? '#5856d6' : '#22c55e'
+            }));
+
+            const Bar = ({ value, max, color }) => (
+                <div className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full bg-gray-800 rounded-t" style={{height: '120px', display: 'flex', alignItems: 'flex-end'}}>
+                        <div className="w-full rounded-t transition-all" style={{height: `${(value/max)*100}%`, backgroundColor: color, minHeight: value > 0 ? '4px' : '0'}}></div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div>
+                    <h1 className="heading-font text-4xl font-bold mb-8">Reports</h1>
+
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        {[
+                            { label: 'Total Revenue', value: '$' + totalRevenue.toLocaleString(), icon: '💰' },
+                            { label: 'Avg Job Value', value: '$' + Math.round(avgJobValue).toLocaleString(), icon: '📊' },
+                            { label: 'Active Jobs', value: activeJobs.length, icon: '🔧' },
+                            { label: 'Overdue Tasks', value: overdueTasks.length, icon: '⚠️' },
+                        ].map((kpi, i) => (
+                            <div key={i} className="glass-card p-5">
+                                <div className="text-2xl mb-2">{kpi.icon}</div>
+                                <div className="text-2xl font-bold mb-1">{kpi.value}</div>
+                                <div className="text-gray-400 text-sm">{kpi.label}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                        {/* Revenue by Month */}
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-bold mb-6">Revenue Last 6 Months</h2>
+                            <div className="flex items-end gap-2" style={{height: '140px'}}>
+                                {months.map((m, i) => (
+                                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                        <div className="w-full bg-gray-800 rounded-t" style={{height: '120px', display: 'flex', alignItems: 'flex-end'}}>
+                                            <div className="w-full rounded-t transition-all" style={{height: `${(m.revenue/maxRevenue)*100}%`, backgroundColor: '#5856d6', minHeight: m.revenue > 0 ? '4px' : '0'}}></div>
+                                        </div>
+                                        <div className="text-xs text-gray-400">{m.label}</div>
+                                        {m.revenue > 0 && <div className="text-xs font-bold">${m.revenue.toLocaleString()}</div>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Jobs by Status */}
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-bold mb-6">Jobs by Status</h2>
+                            <div className="space-y-3">
+                                {jobsByStatus.filter(s => s.count > 0).map((s, i) => (
+                                    <div key={i} className="flex items-center gap-3">
+                                        <div className="w-24 text-sm capitalize text-gray-400">{s.label}</div>
+                                        <div className="flex-1 bg-gray-800 rounded-full h-3">
+                                            <div className="h-3 rounded-full" style={{width: `${(s.count / jobs.length) * 100}%`, backgroundColor: s.color}}></div>
+                                        </div>
+                                        <div className="w-8 text-sm font-bold text-right">{s.count}</div>
+                                    </div>
+                                ))}
+                                {jobs.length === 0 && <div className="text-gray-400 text-sm">No jobs yet</div>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* Tasks by Priority */}
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-bold mb-6">Tasks by Priority</h2>
+                            <div className="space-y-3">
+                                {tasksByPriority.map((p, i) => (
+                                    <div key={i} className="flex items-center gap-3">
+                                        <div className="w-16 text-sm capitalize text-gray-400">{p.label}</div>
+                                        <div className="flex-1 bg-gray-800 rounded-full h-3">
+                                            <div className="h-3 rounded-full" style={{width: tasks.length ? `${(p.count / tasks.length) * 100}%` : '0%', backgroundColor: p.color}}></div>
+                                        </div>
+                                        <div className="w-8 text-sm font-bold text-right">{p.count}</div>
+                                    </div>
+                                ))}
+                                {tasks.length === 0 && <div className="text-gray-400 text-sm">No tasks yet</div>}
+                            </div>
+                        </div>
+
+                        {/* Summary */}
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-bold mb-6">Summary</h2>
+                            <div className="space-y-4">
+                                {[
+                                    { label: 'Total Customers', value: customers.length },
+                                    { label: 'Total Jobs', value: jobs.length },
+                                    { label: 'Completed Jobs', value: completedJobs.length },
+                                    { label: 'Total Tasks', value: tasks.length },
+                                    { label: 'Completed Tasks', value: tasks.filter(t => t.status === 'completed').length },
+                                    { label: 'Pending Tasks', value: tasks.filter(t => t.status !== 'completed').length },
+                                ].map((item, i) => (
+                                    <div key={i} className="flex justify-between items-center border-b border-gray-800 pb-3">
+                                        <span className="text-gray-400">{item.label}</span>
+                                        <span className="font-bold text-xl">{item.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ============================================
+        // CALENDAR VIEW
+        // ============================================
+        const CalendarView = ({ tasks, jobs, onUpdate }) => {
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [selectedDay, setSelectedDay] = useState(null);
+
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthName = currentDate.toLocaleString('default', { month: 'long' });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+            const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+
+            const getItemsForDay = (day) => {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
+                const dayJobs = jobs.filter(j => j.scheduled_date && j.scheduled_date.startsWith(dateStr));
+                return { tasks: dayTasks, jobs: dayJobs };
+            };
+
+            const today = new Date();
+            const isToday = (day) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+
+            const selectedItems = selectedDay ? getItemsForDay(selectedDay) : null;
+
+            return (
+                <div>
+                    <h1 className="heading-font text-4xl font-bold mb-8">Calendar</h1>
+
+                    <div className="glass-card p-6 mb-6">
+                        {/* Header */}
+                        <div className="flex justify-between items-center mb-6">
+                            <button onClick={prevMonth} className="btn-secondary px-4">&#8592;</button>
+                            <h2 className="heading-font text-2xl font-bold">{monthName} {year}</h2>
+                            <button onClick={nextMonth} className="btn-secondary px-4">&#8594;</button>
+                        </div>
+
+                        {/* Day labels */}
+                        <div className="grid grid-cols-7 gap-1 mb-2">
+                            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+                                <div key={d} className="text-center text-xs text-gray-400 font-medium py-1">{d}</div>
+                            ))}
+                        </div>
+
+                        {/* Calendar grid */}
+                        <div className="grid grid-cols-7 gap-1">
+                            {/* Empty cells before first day */}
+                            {Array.from({length: firstDay}).map((_, i) => (
+                                <div key={`empty-${i}`} className="aspect-square" />
+                            ))}
+
+                            {/* Day cells */}
+                            {Array.from({length: daysInMonth}).map((_, i) => {
+                                const day = i + 1;
+                                const items = getItemsForDay(day);
+                                const hasItems = items.tasks.length > 0 || items.jobs.length > 0;
+                                const selected = selectedDay === day;
+
+                                return (
+                                    <div
+                                        key={day}
+                                        onClick={() => setSelectedDay(selected ? null : day)}
+                                        className={`aspect-square rounded-lg p-1 cursor-pointer flex flex-col items-center transition-all ${
+                                            selected ? 'bg-[#5856d6]' :
+                                            isToday(day) ? 'bg-[#5856d6]/30 border border-[#5856d6]' :
+                                            hasItems ? 'bg-gray-800 hover:bg-gray-700' :
+                                            'hover:bg-gray-800'
+                                        }`}
+                                    >
+                                        <div className={`text-sm font-medium ${isToday(day) ? 'text-white' : 'text-gray-300'}`}>{day}</div>
+                                        {items.tasks.length > 0 && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-0.5"></div>
+                                        )}
+                                        {items.jobs.length > 0 && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-0.5"></div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Legend */}
+                        <div className="flex gap-4 mt-4 text-xs text-gray-400">
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-400"></div> Tasks</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-400"></div> Jobs</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#5856d6]"></div> Today</div>
+                        </div>
+                    </div>
+
+                    {/* Selected day detail */}
+                    {selectedDay && selectedItems && (
+                        <div className="glass-card p-6">
+                            <h3 className="heading-font text-xl font-bold mb-4">
+                                {monthName} {selectedDay}, {year}
+                            </h3>
+                            {selectedItems.tasks.length === 0 && selectedItems.jobs.length === 0 && (
+                                <div className="text-gray-400">Nothing scheduled for this day</div>
+                            )}
+                            {selectedItems.tasks.length > 0 && (
+                                <div className="mb-4">
+                                    <div className="text-sm font-medium text-yellow-400 mb-2">📋 Tasks</div>
+                                    <div className="space-y-2">
+                                        {selectedItems.tasks.map(task => (
+                                            <div key={task.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
+                                                <div className={`badge badge-${task.priority === 'urgent' ? 'error' : task.priority === 'high' ? 'warning' : 'info'}`}>{task.priority}</div>
+                                                <div className="flex-1">{task.title}</div>
+                                                <div className={`badge badge-${task.status === 'completed' ? 'success' : 'warning'}`}>{task.status}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {selectedItems.jobs.length > 0 && (
+                                <div>
+                                    <div className="text-sm font-medium text-green-400 mb-2">🔧 Jobs</div>
+                                    <div className="space-y-2">
+                                        {selectedItems.jobs.map(job => (
+                                            <div key={job.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
+                                                <div className="flex-1">{job.title}</div>
+                                                <div className="badge badge-info">{job.status}</div>
+                                                {job.value && <div className="text-green-400 font-medium">${job.value}</div>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+
         const AppInner = () => {
             const { user, isSuperAdmin, loading } = useAuth();
             const [isAdminRoute, setIsAdminRoute] = useState(false);
