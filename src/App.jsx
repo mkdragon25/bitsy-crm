@@ -103,8 +103,7 @@ const AuthContext = createContext();
                             pricing_model: 'per_user',
                             price_per_user: 27.00,
                             active_users: 1,
-                            subscription_status: 'trial',
-                            trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+                            subscription_status: 'active'
                         });
 
                     if (orgError) throw orgError;
@@ -182,9 +181,8 @@ const AuthContext = createContext();
                                 onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
                                 className="btn-primary text-lg"
                             >
-                                Start Free Trial
+                                Get Started - $27/month
                             </button>
-                            <p className="text-sm text-gray-500 mt-4">No credit card required</p>
                         </div>
                     </section>
 
@@ -313,47 +311,6 @@ const AuthContext = createContext();
                                     </button>
                                 </div>
 
-                                {/* Professional Plan */}
-                                <div className="glass-card p-8 pricing-card border-2 border-[#5856d6]">
-                                    <div className="popular-badge">Popular</div>
-                                    <h3 className="heading-font text-2xl font-bold mb-2">Professional</h3>
-                                    <div className="flex items-baseline mb-6">
-                                        <span className="text-5xl font-bold">$39</span>
-                                        <span className="text-gray-400 ml-2">/month</span>
-                                    </div>
-                                    <ul className="space-y-4 mb-8">
-                                        <li className="flex items-center gap-3">
-                                            <span className="text-green-400">&#10003;</span>
-                                            <span>Up to 10 users</span>
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <span className="text-green-400">&#10003;</span>
-                                            <span>500 customers</span>
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <span className="text-green-400">&#10003;</span>
-                                            <span>Unlimited jobs</span>
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <span className="text-green-400">&#10003;</span>
-                                            <span>Custom fields & tags</span>
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <span className="text-green-400">&#10003;</span>
-                                            <span>Advanced reporting</span>
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <span className="text-green-400">&#10003;</span>
-                                            <span>Priority support</span>
-                                        </li>
-                                    </ul>
-                                    <button 
-                                        onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
-                                        className="btn-primary w-full"
-                                    >
-                                        Start Free Trial
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </section>
@@ -847,7 +804,7 @@ const AuthContext = createContext();
                                                     <td className="p-4 text-green-400 font-bold">${((org.active_users || 1) * 27).toFixed(2)}</td>
                                                     <td className="p-4">
                                                         <span className={`badge ${org.subscription_status === 'active' ? 'badge-success' : 'badge-warning'}`}>
-                                                            {org.subscription_status || 'trial'}
+                                                            {org.subscription_status || 'active'}
                                                         </span>
                                                     </td>
                                                     <td className="p-4 text-gray-400 text-sm">
@@ -943,7 +900,7 @@ const AuthContext = createContext();
                                                 </div>
                                             </div>
                                             <span className={`badge ${org.subscription_status === 'active' ? 'badge-success' : 'badge-warning'}`}>
-                                                {org.subscription_status || 'trial'}
+                                                {org.subscription_status || 'active'}
                                             </span>
                                         </div>
                                     ))}
@@ -2640,8 +2597,6 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             const getSubscriptionStatus = () => {
                 if (organization.subscription_status === 'active') {
                     return { label: 'Active', class: 'badge-success' };
-                } else if (organization.subscription_status === 'trial') {
-                    return { label: 'Trial', class: 'badge-info' };
                 } else if (organization.subscription_status === 'cancelled') {
                     return { label: 'Cancelled', class: 'badge-error' };
                 } else {
@@ -2707,7 +2662,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                     <div>
                                         <div className="text-sm text-gray-400 mb-1">Status</div>
                                         <span className="badge badge-info">
-                                            {organization.subscription_status || 'Trial'}
+                                            {organization.subscription_status || 'Active'}
                                         </span>
                                     </div>
                                 </div>
