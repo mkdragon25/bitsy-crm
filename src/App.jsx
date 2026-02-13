@@ -2727,7 +2727,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         ;
 
         // Main App Component
-        const App = () => {
+        const AppInner = () => {
             const { user, isSuperAdmin, loading } = useAuth();
             const [isAdminRoute, setIsAdminRoute] = useState(false);
 
@@ -2755,6 +2755,14 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             }
 
             return user ? <Dashboard /> : <LandingPage />;
+        };
+
+        const App = () => {
+            return (
+                <AuthProvider>
+                    <AppInner />
+                </AuthProvider>
+            );
         };
 
 export default App;
