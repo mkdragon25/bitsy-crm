@@ -158,7 +158,7 @@ const AuthContext = createContext();
                     <nav className="relative z-10 px-6 py-6">
                         <div className="max-w-7xl mx-auto flex justify-between items-center">
                             <div className="heading-font text-3xl font-bold text-white">
-                                Bitsy<span className="text-[#5856d6]">CRM</span>
+                                Bitsy<span className="text-[#FFD93D]">CRM</span>
                             </div>
                             <div className="flex gap-4">
                                 <button 
@@ -182,7 +182,7 @@ const AuthContext = createContext();
                         <div className="max-w-6xl mx-auto text-center">
                             <h1 className="heading-font text-6xl md:text-7xl font-black mb-6 leading-tight">
                                 Small Business.<br/>
-                                <span className="text-[#5856d6]">Big Results.</span>
+                                <span className="text-[#FFD93D]">Big Results.</span>
                             </h1>
                             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
                                 The affordable CRM designed specifically for service businesses with under 50 employees. 
@@ -263,7 +263,7 @@ const AuthContext = createContext();
                                         <span className="text-5xl font-bold">$27</span>
                                         <span className="text-gray-400 ml-2">/user/month</span>
                                     </div>
-                                    <div className="mb-6 p-4 bg-[#5856d6]/10 rounded-lg">
+                                    <div className="mb-6 p-4 bg-[#FFD93D]/10 rounded-lg">
                                         <div className="text-sm text-gray-400 mb-2">Example Pricing</div>
                                         <div className="grid grid-cols-3 gap-4 text-center">
                                             <div>
@@ -330,7 +330,7 @@ const AuthContext = createContext();
                     <footer className="relative z-10 px-6 py-12 border-t border-gray-800">
                         <div className="max-w-6xl mx-auto text-center text-gray-500">
                             <p className="heading-font text-2xl font-bold mb-4">
-                                Bitsy<span className="text-[#5856d6]">CRM</span>
+                                Bitsy<span className="text-[#FFD93D]">CRM</span>
                             </p>
                             <p>&copy; 2026 BitsyCRM. All rights reserved.</p>
                         </div>
@@ -402,7 +402,7 @@ const AuthContext = createContext();
 
             return (
                 <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="heading-font text-2xl font-bold">
                                 {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
@@ -531,14 +531,14 @@ const AuthContext = createContext();
                             {mode === 'signup' ? (
                                 <>
                                     Already have an account?{' '}
-                                    <button onClick={() => onSwitchMode('signin')} className="text-[#5856d6] hover:underline">
+                                    <button onClick={() => onSwitchMode('signin')} className="text-[#FFD93D] hover:underline">
                                         Sign In
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     Don't have an account?{' '}
-                                    <button onClick={() => onSwitchMode('signup')} className="text-[#5856d6] hover:underline">
+                                    <button onClick={() => onSwitchMode('signup')} className="text-[#FFD93D] hover:underline">
                                         Sign Up
                                     </button>
                                 </>
@@ -708,7 +708,7 @@ const AuthContext = createContext();
             }
 
             return (
-                <div className="min-h-screen bg-[#0a0a0f] p-6">
+                <div className="min-h-screen bg-[#0D0E2E] p-6">
                     <div className="max-w-7xl mx-auto">
                         {/* Header */}
                         <div className="flex justify-between items-center mb-8">
@@ -1002,7 +1002,7 @@ const AuthContext = createContext();
                                 <>
                                     <div style={{fontSize:'2rem'}}>⚠️</div>
                                     <div style={{color:'#f87171',fontWeight:'600'}}>Could not load your organization</div>
-                                    <div style={{color:'#9ca3af',fontSize:'0.875rem',maxWidth:'400px'}}>
+                                    <div style={{color:'#A0A3C4',fontSize:'0.875rem',maxWidth:'400px'}}>
                                         This usually means the Supabase database tables haven't been created yet.
                                         Please run the <strong>supabase-schema.sql</strong> file in your Supabase SQL Editor, then refresh this page.
                                     </div>
@@ -1042,7 +1042,7 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="flex h-screen bg-[#0a0a0f] overflow-hidden">
+                <div className="flex h-screen bg-[#0D0E2E] overflow-hidden">
                     {/* Mobile overlay */}
                     {sidebarOpen && (
                         <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
@@ -1051,7 +1051,7 @@ const AuthContext = createContext();
                     <div className={`dashboard-sidebar flex flex-col fixed md:relative z-30 h-full transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`} style={{width: '16rem'}}>
                         <div className="p-6 border-b border-gray-800">
                             <div className="heading-font text-2xl font-bold">
-                                Bitsy<span className="text-[#5856d6]">CRM</span>
+                                Bitsy<span className="text-[#FFD93D]">CRM</span>
                             </div>
                             <div className="text-sm text-gray-400 mt-2">{organization?.name}</div>
                         </div>
@@ -1081,7 +1081,7 @@ const AuthContext = createContext();
 
                         <div className="p-4 border-t border-gray-800">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className="w-10 h-10 rounded-full bg-[#5856d6] flex items-center justify-center text-white font-bold">
+                                <div className="w-10 h-10 rounded-full bg-[#FFD93D] flex items-center justify-center text-white font-bold">
                                     {user?.email?.[0].toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1106,9 +1106,9 @@ const AuthContext = createContext();
                     {/* Main Content */}
                     <div className="flex-1 overflow-auto w-full">
                         {/* Mobile header */}
-                        <div className="md:hidden flex items-center gap-4 p-4 border-b border-gray-800 sticky top-0 bg-[#0a0a0f] z-10">
+                        <div className="md:hidden flex items-center gap-4 p-4 border-b border-gray-800 sticky top-0 bg-[#0D0E2E] z-10">
                             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">&#9776;</button>
-                            <div className="heading-font text-xl font-bold">Bitsy<span className="text-[#5856d6]">CRM</span></div>
+                            <div className="heading-font text-xl font-bold">Bitsy<span className="text-[#FFD93D]">CRM</span></div>
                         </div>
                         <div className="p-4 md:p-8">
                             {renderContent()}
@@ -1262,7 +1262,7 @@ const AuthContext = createContext();
             const stats = calculateStats();
 
             return (
-                <div className="min-h-screen bg-[#0a0a0f] p-6">
+                <div className="min-h-screen bg-[#0D0E2E] p-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="flex justify-between items-start mb-8">
                             <div>
@@ -1405,7 +1405,7 @@ const AuthContext = createContext();
 
             return (
                 <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Edit Customer</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -1476,12 +1476,12 @@ const AuthContext = createContext();
                 }
             };
 
-            const fieldStyle = {width:'100%', padding:'10px 14px', background:'rgba(26,26,46,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px'};
-            const labelStyle = {display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#a0a0b0'};
+            const fieldStyle = {width:'100%', padding:'10px 14px', background:'rgba(26,27,75,0.95)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px'};
+            const labelStyle = {display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#A0A3C4'};
 
             return (
                 <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
-                    <div onClick={e => e.stopPropagation()} style={{background:'#12121f',border:'1px solid rgba(88,86,214,0.5)',borderRadius:'12px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#e8e8ed'}}>
+                    <div onClick={e => e.stopPropagation()} style={{background:'#1A1B4B',border:'1px solid rgba(255,217,61,0.5)',borderRadius:'12px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#e8e8ed'}}>
                         <h2 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1.5rem'}}>Create Job</h2>
 
                         {error && (
@@ -1544,7 +1544,7 @@ const AuthContext = createContext();
 
                         <div style={{display:'flex',gap:'0.75rem'}}>
                             <button onClick={handleSubmit} disabled={loading}
-                                style={{flex:1,padding:'12px',background:'#5856d6',color:'white',border:'none',borderRadius:'8px',fontWeight:'600',cursor:loading?'not-allowed':'pointer',opacity:loading?0.7:1}}>
+                                style={{flex:1,padding:'12px',background:'#FFD93D',color:'#0D0E2E',border:'none',borderRadius:'8px',fontWeight:'600',cursor:loading?'not-allowed':'pointer',opacity:loading?0.7:1}}>
                                 {loading ? 'Creating...' : 'Create Job'}
                             </button>
                             <button onClick={onClose}
@@ -1690,7 +1690,7 @@ const AuthContext = createContext();
                             <tbody>
                                 {filteredCustomers.map(customer => (
                                     <tr key={customer.id} className="table-row">
-                                        <td className="p-4 font-medium text-[#5856d6] hover:underline cursor-pointer"
+                                        <td className="p-4 font-medium text-[#FFD93D] hover:underline cursor-pointer"
                                             onClick={() => { setSelectedCustomer(customer); setShowRecordPage(true); }}>
                                             {customer.name}
                                         </td>
@@ -1723,8 +1723,8 @@ const AuthContext = createContext();
                             zIndex: 9999
                         }}>
                             <div onClick={e => e.stopPropagation()} style={{
-                                background: '#12121f',
-                                border: '1px solid rgba(88,86,214,0.5)',
+                                background: '#1A1B4B',
+                                border: '1px solid rgba(255,217,61,0.5)',
                                 borderRadius: '12px',
                                 padding: '2rem',
                                 width: '100%', maxWidth: '480px',
@@ -1746,24 +1746,24 @@ const AuthContext = createContext();
                                     { label: 'Address', value: newAddress, setter: setNewAddress, type: 'text', placeholder: 'Street address' },
                                 ].map(f => (
                                     <div key={f.label} style={{marginBottom:'1rem'}}>
-                                        <label style={{display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#a0a0b0'}}>{f.label}</label>
+                                        <label style={{display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#A0A3C4'}}>{f.label}</label>
                                         <input type={f.type} placeholder={f.placeholder} value={f.value}
                                             onChange={e => f.setter(e.target.value)}
-                                            style={{width:'100%', padding:'10px 14px', background:'rgba(26,26,46,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px'}}
+                                            style={{width:'100%', padding:'10px 14px', background:'rgba(26,27,75,0.95)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px'}}
                                         />
                                     </div>
                                 ))}
 
                                 <div style={{marginBottom:'1.5rem'}}>
-                                    <label style={{display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#a0a0b0'}}>Notes</label>
+                                    <label style={{display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#A0A3C4'}}>Notes</label>
                                     <textarea placeholder="Any notes..." value={newNotes} onChange={e => setNewNotes(e.target.value)} rows={3}
-                                        style={{width:'100%', padding:'10px 14px', background:'rgba(26,26,46,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px', resize:'vertical'}}
+                                        style={{width:'100%', padding:'10px 14px', background:'rgba(26,27,75,0.95)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px', resize:'vertical'}}
                                     />
                                 </div>
 
                                 <div style={{display:'flex', gap:'0.75rem'}}>
                                     <button onClick={handleSaveCustomer} disabled={saving}
-                                        style={{flex:1, padding:'12px', background:'#5856d6', color:'white', border:'none', borderRadius:'8px', fontWeight:'600', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1}}>
+                                        style={{flex:1, padding:'12px', background:'#FFD93D', color:'#0D0E2E', border:'none', borderRadius:'8px', fontWeight:'600', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1}}>
                                         {saving ? 'Adding...' : 'Add Customer'}
                                     </button>
                                     <button onClick={() => setShowAddModal(false)}
@@ -1778,19 +1778,19 @@ const AuthContext = createContext();
                     {/* ── CSV IMPORT MODAL ── */}
                     {importPreview && (
                         <div onClick={() => setImportPreview(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
-                            <div onClick={e => e.stopPropagation()} style={{background:'#12121f',border:'1px solid rgba(88,86,214,0.5)',borderRadius:'12px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#e8e8ed'}}>
+                            <div onClick={e => e.stopPropagation()} style={{background:'#1A1B4B',border:'1px solid rgba(255,217,61,0.5)',borderRadius:'12px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#e8e8ed'}}>
                                 <h2 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>Preview: {importPreview.length} customers</h2>
                                 <div style={{maxHeight:'240px',overflowY:'auto',marginBottom:'1.5rem'}}>
                                     {importPreview.slice(0,10).map((row,i) => (
                                         <div key={i} style={{padding:'0.75rem',background:'rgba(255,255,255,0.05)',borderRadius:'8px',marginBottom:'0.5rem',fontSize:'0.875rem'}}>
                                             <div style={{fontWeight:'600'}}>{row.name||'(no name)'}</div>
-                                            <div style={{color:'#a0a0b0'}}>{row.email} {row.phone?'· '+row.phone:''}</div>
+                                            <div style={{color:'#A0A3C4'}}>{row.email} {row.phone?'· '+row.phone:''}</div>
                                         </div>
                                     ))}
-                                    {importPreview.length > 10 && <div style={{color:'#a0a0b0',fontSize:'0.875rem'}}>...and {importPreview.length-10} more</div>}
+                                    {importPreview.length > 10 && <div style={{color:'#A0A3C4',fontSize:'0.875rem'}}>...and {importPreview.length-10} more</div>}
                                 </div>
                                 <div style={{display:'flex',gap:'0.75rem'}}>
-                                    <button onClick={confirmImport} disabled={importing} style={{flex:1,padding:'12px',background:'#5856d6',color:'white',border:'none',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>
+                                    <button onClick={confirmImport} disabled={importing} style={{flex:1,padding:'12px',background:'#FFD93D',color:'#0D0E2E',border:'none',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>
                                         {importing ? 'Importing...' : `Import ${importPreview.length}`}
                                     </button>
                                     <button onClick={() => setImportPreview(null)} style={{flex:1,padding:'12px',background:'rgba(255,255,255,0.05)',color:'#e8e8ed',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>Cancel</button>
@@ -1846,7 +1846,7 @@ const AuthContext = createContext();
 
             return (
                 <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}} onClick={onClose}>
-                    <div style={{background:'#1a1a2e',border:'1px solid rgba(88,86,214,0.4)',borderRadius:'16px',padding:'2rem',width:'90%',maxWidth:'500px',maxHeight:'90vh',overflowY:'auto'}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{background:'#1A1B4B',border:'1px solid rgba(255,217,61,0.25)',borderRadius:'16px',padding:'2rem',width:'90%',maxWidth:'500px',maxHeight:'90vh',overflowY:'auto'}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Add New Customer</h2>
 
                         {error && (
@@ -2052,7 +2052,7 @@ const AuthContext = createContext();
             }
 
             return (
-                <div className="min-h-screen bg-[#0a0a0f] p-6">
+                <div className="min-h-screen bg-[#0D0E2E] p-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="flex justify-between items-start mb-8">
                             <div>
@@ -2199,7 +2199,7 @@ const AuthContext = createContext();
 
             return (
                 <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Edit Job</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -2471,7 +2471,7 @@ const AuthContext = createContext();
 
             return (
                 <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+                    <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Create Team Member</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -2619,7 +2619,7 @@ const PipelineView = ({ organization, onUpdate }) => {
                                     {getDealsForStage(stage.id).map(deal => (
                                         <div key={deal.id} draggable onDragStart={() => setDraggedDeal(deal)}
                                              onClick={() => setSelectedDeal(deal)}
-                                             className="bg-white/5 p-4 rounded border border-gray-700 hover:border-[#5856d6] cursor-move hover:bg-white/10 transition-all">
+                                             className="bg-white/5 p-4 rounded border border-gray-700 hover:border-[#FFD93D] cursor-move hover:bg-white/10 transition-all">
                                             <div className="font-medium mb-2">{deal.title}</div>
                                             <div className="text-sm text-gray-400 mb-2">
                                                 {customers.find(c => c.id === deal.customer_id)?.name || 'No customer'}
@@ -2681,7 +2681,7 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
 
     return (
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-            <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-6">Create New Deal</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" className="input-field" placeholder="Deal Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
@@ -2712,7 +2712,7 @@ const DealDetailModal = ({ deal, customers, onClose, onUpdate }) => {
 
     return (
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-            <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-4">{deal.title}</h2>
                 <div className="space-y-4">
                     <div className="text-3xl font-bold text-green-400">${(deal.value || 0).toLocaleString()}</div>
@@ -2822,7 +2822,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
     return (
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-            <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-6">Create Task</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" className="input-field" placeholder="Task Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
@@ -2896,7 +2896,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-2">Current Plan</label>
-                                    <div className="text-lg font-semibold text-[#5856d6]">
+                                    <div className="text-lg font-semibold text-[#FFD93D]">
                                         ${((organization.active_users || 1) * 27).toFixed(2)}/month for {organization.active_users || 1} user(s)
                                     </div>
                                 </div>
@@ -2923,7 +2923,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                 <button onClick={handleManageBilling} className="btn-primary">
                                     Manage Subscription
                                 </button>
-                                <div className="bg-[#5856d6]/10 border border-[#5856d6]/30 text-[#5856d6] px-4 py-3 rounded-lg text-sm">
+                                <div className="bg-[#FFD93D]/10 border border-[#FFD93D]/30 text-[#FFD93D] px-4 py-3 rounded-lg text-sm">
                                     <strong>$27/user/month</strong> — Add team members from the Team tab
                                 </div>
                             </div>
@@ -2948,7 +2948,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             const jobsByStatus = jobStatuses.map(s => ({
                 label: s.replace('_', ' '),
                 count: jobs.filter(j => j.status === s).length,
-                color: s === 'completed' ? '#22c55e' : s === 'cancelled' ? '#ef4444' : s === 'in_progress' ? '#5856d6' : s === 'scheduled' ? '#f59e0b' : '#6b7280'
+                color: s === 'completed' ? '#22c55e' : s === 'cancelled' ? '#ef4444' : s === 'in_progress' ? '#FFD93D' : s === 'scheduled' ? '#f59e0b' : '#6b7280'
             }));
 
             // Revenue by month (last 6 months)
@@ -2969,7 +2969,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             const tasksByPriority = priorities.map(p => ({
                 label: p,
                 count: tasks.filter(t => t.priority === p).length,
-                color: p === 'urgent' ? '#ef4444' : p === 'high' ? '#f59e0b' : p === 'medium' ? '#5856d6' : '#22c55e'
+                color: p === 'urgent' ? '#ef4444' : p === 'high' ? '#f59e0b' : p === 'medium' ? '#FFD93D' : '#22c55e'
             }));
 
             const Bar = ({ value, max, color }) => (
@@ -3008,7 +3008,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                 {months.map((m, i) => (
                                     <div key={i} className="flex-1 flex flex-col items-center gap-1">
                                         <div className="w-full bg-gray-800 rounded-t" style={{height: '120px', display: 'flex', alignItems: 'flex-end'}}>
-                                            <div className="w-full rounded-t transition-all" style={{height: `${(m.revenue/maxRevenue)*100}%`, backgroundColor: '#5856d6', minHeight: m.revenue > 0 ? '4px' : '0'}}></div>
+                                            <div className="w-full rounded-t transition-all" style={{height: `${(m.revenue/maxRevenue)*100}%`, backgroundColor: '#FFD93D', minHeight: m.revenue > 0 ? '4px' : '0'}}></div>
                                         </div>
                                         <div className="text-xs text-gray-400">{m.label}</div>
                                         {m.revenue > 0 && <div className="text-xs font-bold">${m.revenue.toLocaleString()}</div>}
@@ -3144,8 +3144,8 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                         key={day}
                                         onClick={() => setSelectedDay(selected ? null : day)}
                                         className={`aspect-square rounded-lg p-1 cursor-pointer flex flex-col items-center transition-all ${
-                                            selected ? 'bg-[#5856d6]' :
-                                            isToday(day) ? 'bg-[#5856d6]/30 border border-[#5856d6]' :
+                                            selected ? 'bg-[#FFD93D]' :
+                                            isToday(day) ? 'bg-[#FFD93D]/30 border border-[#FFD93D]' :
                                             hasItems ? 'bg-gray-800 hover:bg-gray-700' :
                                             'hover:bg-gray-800'
                                         }`}
@@ -3166,7 +3166,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                         <div className="flex gap-4 mt-4 text-xs text-gray-400">
                             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-400"></div> Tasks</div>
                             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-400"></div> Jobs</div>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#5856d6]"></div> Today</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#FFD93D]"></div> Today</div>
                         </div>
                     </div>
 
@@ -3231,7 +3231,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
             if (loading) {
                 return (
-                    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+                    <div className="min-h-screen bg-[#0D0E2E] flex items-center justify-center">
                         <div className="loading-spinner"></div>
                     </div>
                 );
