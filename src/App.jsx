@@ -62,24 +62,61 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                // Try up to 3 times in case of timing issues
-                for (let attempt = 1; attempt <= 3; attempt++) {
-                    const { data, error } = await supabase
+                // 1️⃣ Try to load the org row
+                const { data, error } = await supabase
+                    .from('organizations')
+                    .select('*')
+                    .eq('owner_id', userId)
+                    .single();
+
+                if (data) {
+                    setOrganization(data);
+                    return;
+                }
+
+                // 2️⃣ Check what kind of failure it was
+                const errMsg = error?.message || '';
+
+                // Table doesn't exist at all → schema not run yet
+                if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('42P01')) {
+                    console.error('Schema not set up — tables missing');
+                    return; // orgLoadFailed timeout will handle UI
+                }
+
+                // 3️⃣ Table exists but no row found — user signed up before tables were created
+                // Try to auto-create org from metadata saved during signup
+                console.warn('No org row found — attempting auto-create from metadata...');
+                try {
+                    const { data: { user: currentUser } } = await supabase.auth.getUser();
+                    const meta = currentUser?.user_metadata || {};
+                    const orgName = meta.organization_name || meta.full_name ? `${meta.full_name}'s Business` : currentUser?.email?.split('@')[0] || 'My Business';
+
+                    const { data: newOrg, error: insertErr } = await supabase
                         .from('organizations')
-                        .select('*')
-                        .eq('owner_id', userId)
+                        .insert({
+                            owner_id: userId,
+                            name: orgName,
+                            business_description: meta.business_description || '',
+                            industry: meta.industry || '',
+                            team_size: meta.team_size || '',
+                            plan: meta.plan || 'per_user',
+                            pricing_model: 'per_user',
+                            price_per_user: 27.00,
+                            active_users: 1,
+                            subscription_status: 'active'
+                        })
+                        .select()
                         .single();
-                    
-                    if (data) {
-                        setOrganization(data);
+
+                    if (newOrg) {
+                        console.log('✅ Auto-created org:', newOrg.name);
+                        setOrganization(newOrg);
                         return;
                     }
-                    if (error) {
-                        console.warn(`loadOrganization attempt ${attempt} failed:`, error.message);
-                    }
-                    if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
+                    console.error('Auto-create failed:', insertErr?.message);
+                } catch (e) {
+                    console.error('Auto-create exception:', e.message);
                 }
-                console.error('Could not load organization after 3 attempts');
             };
 
             const signUp = async (email, password, organizationName, plan, fullName, businessDescription, industry, teamSize) => {
@@ -951,7 +988,7 @@ const AuthContext = createContext();
                 if (organization) return;
                 const timer = setTimeout(() => {
                     if (!organization) setOrgLoadFailed(true);
-                }, 6000);
+                }, 3000);
                 return () => clearTimeout(timer);
             }, [organization]);
 
@@ -1000,13 +1037,19 @@ const AuthContext = createContext();
                         <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60vh',gap:'1rem',textAlign:'center',padding:'2rem'}}>
                             {orgLoadFailed ? (
                                 <>
-                                    <div style={{fontSize:'2rem'}}>⚠️</div>
-                                    <div style={{color:'#f87171',fontWeight:'600'}}>Could not load your organization</div>
-                                    <div style={{color:'#A0A3C4',fontSize:'0.875rem',maxWidth:'400px'}}>
-                                        This usually means the Supabase database tables haven't been created yet.
-                                        Please run the <strong>supabase-schema.sql</strong> file in your Supabase SQL Editor, then refresh this page.
+                                    <div style={{fontSize:'2.5rem'}}>⚠️</div>
+                                    <div style={{color:'#f87171',fontWeight:'700',fontSize:'1.1rem'}}>Database not set up yet</div>
+                                    <div style={{color:'#A0A3C4',fontSize:'0.875rem',maxWidth:'460px',lineHeight:'1.7',textAlign:'left',background:'rgba(255,217,61,0.06)',border:'1px solid rgba(255,217,61,0.15)',borderRadius:'12px',padding:'1.25rem'}}>
+                                        <div style={{fontWeight:'600',color:'#E8E8F0',marginBottom:'0.75rem'}}>3 steps to fix this:</div>
+                                        <div style={{display:'flex',flexDirection:'column',gap:'0.6rem'}}>
+                                            <div>① Go to <strong style={{color:'#FFD93D'}}>Supabase → SQL Editor → New Query</strong></div>
+                                            <div>② Paste the <strong style={{color:'#FFD93D'}}>supabase-schema.sql</strong> file and click <strong style={{color:'#FFD93D'}}>Run</strong></div>
+                                            <div>③ Click the button below</div>
+                                        </div>
                                     </div>
-                                    <button onClick={() => window.location.reload()} className="btn-primary">Refresh Page</button>
+                                    <button onClick={() => window.location.reload()} className="btn-primary" style={{marginTop:'0.5rem'}}>
+                                        🔄 I ran the SQL — Reload Now
+                                    </button>
                                 </>
                             ) : (
                                 <>
