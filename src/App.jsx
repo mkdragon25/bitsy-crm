@@ -390,8 +390,8 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="modal-overlay" onClick={onClose}>
-                    <div className="modal-content glass-card p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="heading-font text-2xl font-bold">
                                 {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
@@ -1360,8 +1360,8 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="modal-overlay" onClick={onClose}>
-                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Edit Customer</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -1424,8 +1424,8 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="modal-overlay" onClick={onClose}>
-                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Create Job</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -1482,8 +1482,26 @@ const AuthContext = createContext();
 
         // Customers View
         const CustomersView = ({ customers, organization, onUpdate }) => {
+            // ALL hooks at the very top - never conditionally
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [showRecordPage, setShowRecordPage] = useState(false);
+            const [selectedCustomer, setSelectedCustomer] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
             const [importing, setImporting] = useState(false);
             const [importPreview, setImportPreview] = useState(null);
+
+            // Guard - org not ready yet
+            if (!organization) return <div className="text-gray-400 p-8">Loading...</div>;
+
+            const filteredCustomers = (customers || []).filter(c =>
+                (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (c.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            const handleCustomerClick = (customer) => {
+                setSelectedCustomer(customer);
+                setShowRecordPage(true);
+            };
 
             const handleCSVUpload = (e) => {
                 const file = e.target.files[0];
@@ -1521,26 +1539,10 @@ const AuthContext = createContext();
                 onUpdate();
                 alert(`✅ Imported ${importPreview.length} customers!`);
             };
-            const [showAddModal, setShowAddModal] = useState(false);
-            const [showRecordPage, setShowRecordPage] = useState(false);
-            const [selectedCustomer, setSelectedCustomer] = useState(null);
-            const [searchTerm, setSearchTerm] = useState('');
-
-            const filteredCustomers = customers.filter(c => 
-                c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                c.email?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-
-            const canAddMore = true; // Unlimited customers with per-user pricing
-
-            const handleCustomerClick = (customer) => {
-                setSelectedCustomer(customer);
-                setShowRecordPage(true);
-            };
 
             if (showRecordPage && selectedCustomer) {
                 return (
-                    <CustomerRecordPage 
+                    <CustomerRecordPage
                         customerId={selectedCustomer.id}
                         onClose={() => {
                             setShowRecordPage(false);
@@ -1560,10 +1562,7 @@ const AuthContext = createContext();
                                 📂 Import CSV
                                 <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
                             </label>
-                            <button 
-                                className="btn-primary"
-                                onClick={() => setShowAddModal(true)}
-                            >
+                            <button className="btn-primary" onClick={() => setShowAddModal(true)}>
                                 + Add Customer
                             </button>
                         </div>
@@ -1597,20 +1596,10 @@ const AuthContext = createContext();
                                         <td className="p-4 font-medium text-[#5856d6] hover:underline cursor-pointer" onClick={() => handleCustomerClick(customer)}>{customer.name}</td>
                                         <td className="p-4 text-gray-400">{customer.email || '-'}</td>
                                         <td className="p-4 text-gray-400">{customer.phone || '-'}</td>
+                                        <td className="p-4"><span className="badge badge-success">Active</span></td>
+                                        <td className="p-4 text-gray-400">{new Date(customer.created_at).toLocaleDateString()}</td>
                                         <td className="p-4">
-                                            <span className="badge badge-success">Active</span>
-                                        </td>
-                                        <td className="p-4 text-gray-400">
-                                            {new Date(customer.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="p-4">
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleCustomerClick(customer);
-                                                }}
-                                                className="btn-primary text-sm px-4 py-2"
-                                            >
+                                            <button onClick={(e) => { e.stopPropagation(); handleCustomerClick(customer); }} className="btn-primary text-sm px-4 py-2">
                                                 View Details
                                             </button>
                                         </td>
@@ -1620,29 +1609,24 @@ const AuthContext = createContext();
                         </table>
                         {filteredCustomers.length === 0 && (
                             <div className="p-8 text-center text-gray-400">
-                                {searchTerm ? 'No customers found' : 'No customers yet. Add your first customer to get started!'}
+                                {searchTerm ? 'No customers found' : 'No customers yet. Click + Add Customer to get started!'}
                             </div>
                         )}
                     </div>
 
-                    <div className="mt-4 text-sm text-gray-400">
-                        {customers.length} customers (unlimited)
-                    </div>
+                    <div className="mt-4 text-sm text-gray-400">{customers.length} customers</div>
 
                     {showAddModal && (
-                        <AddCustomerModal 
+                        <AddCustomerModal
                             organizationId={organization.id}
                             onClose={() => setShowAddModal(false)}
-                            onSuccess={() => {
-                                setShowAddModal(false);
-                                onUpdate();
-                            }}
+                            onSuccess={() => { setShowAddModal(false); onUpdate(); }}
                         />
                     )}
 
                     {importPreview && (
-                        <div className="modal-overlay" onClick={() => setImportPreview(null)}>
-                            <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+                        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}} onClick={() => setImportPreview(null)}>
+                            <div style={{background:'#1a1a2e',border:'1px solid rgba(88,86,214,0.4)',borderRadius:'16px',padding:'2rem',width:'90%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto'}} onClick={e => e.stopPropagation()}>
                                 <h2 className="heading-font text-2xl font-bold mb-4">Import Preview ({importPreview.length} customers)</h2>
                                 <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
                                     {importPreview.slice(0, 10).map((row, i) => (
@@ -1709,12 +1693,12 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="modal-overlay" onClick={onClose}>
-                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}} onClick={onClose}>
+                    <div style={{background:'#1a1a2e',border:'1px solid rgba(88,86,214,0.4)',borderRadius:'16px',padding:'2rem',width:'90%',maxWidth:'500px',maxHeight:'90vh',overflowY:'auto'}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Add New Customer</h2>
 
                         {error && (
-                            <div className="bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm">
+                            <div style={{background:'rgba(239,68,68,0.2)',border:'1px solid rgba(239,68,68,0.5)',color:'#f87171',padding:'0.75rem 1rem',borderRadius:'8px',marginBottom:'1rem',fontSize:'0.875rem'}}>
                                 {error}
                             </div>
                         )}
@@ -2059,8 +2043,8 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="modal-overlay" onClick={onClose}>
-                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Edit Job</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -2331,8 +2315,8 @@ const AuthContext = createContext();
             };
 
             return (
-                <div className="modal-overlay" onClick={onClose}>
-                    <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                         <h2 className="heading-font text-2xl font-bold mb-6">Create Team Member</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -2541,8 +2525,8 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content glass-card p-8 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+            <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-6">Create New Deal</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" className="input-field" placeholder="Deal Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
@@ -2572,8 +2556,8 @@ const DealDetailModal = ({ deal, customers, onClose, onUpdate }) => {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content glass-card p-8 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+            <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-4">{deal.title}</h2>
                 <div className="space-y-4">
                     <div className="text-3xl font-bold text-green-400">${(deal.value || 0).toLocaleString()}</div>
@@ -2682,8 +2666,8 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
+            <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-6">Create Task</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" className="input-field" placeholder="Task Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
