@@ -24,10 +24,10 @@ const AuthContext = createContext();
 
             useEffect(() => {
                 checkUser();
-                const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
                     if (session?.user) {
                         setUser(session.user);
-                        loadOrganization(session.user.id);
+                        await loadOrganization(session.user.id);
                     } else {
                         setUser(null);
                         setOrganization(null);
@@ -1392,6 +1392,7 @@ const AuthContext = createContext();
 
         // Create Job Modal
         const CreateJobModal = ({ customers, organizationId, onClose, onSuccess }) => {
+            const { user } = useAuth();
             const [title, setTitle] = useState('');
             const [description, setDescription] = useState('');
             const [customerId, setCustomerId] = useState('');
@@ -1404,12 +1405,24 @@ const AuthContext = createContext();
 
             const handleSubmit = async () => {
                 if (!title.trim()) { setError('Title is required'); return; }
-                if (!organizationId) { setError('Organization not loaded yet — please try again'); return; }
                 setLoading(true);
                 setError('');
+
+                // Use prop orgId, or fetch it directly if not loaded yet
+                let orgId = organizationId;
+                if (!orgId && user?.id) {
+                    const { data: orgData } = await supabase
+                        .from('organizations')
+                        .select('id')
+                        .eq('owner_id', user.id)
+                        .single();
+                    orgId = orgData?.id;
+                }
+                if (!orgId) { setError('Could not find your organization. Please refresh and try again.'); setLoading(false); return; }
+
                 try {
                     const { error: dbError } = await supabase.from('jobs').insert({
-                        organization_id: organizationId,
+                        organization_id: orgId,
                         title: title.trim(),
                         description: description.trim(),
                         customer_id: customerId || null,
@@ -1509,6 +1522,7 @@ const AuthContext = createContext();
 
         // Customers View
         const CustomersView = ({ customers, organization, onUpdate }) => {
+            const { user } = useAuth();
             // ALL hooks at the very top
             const [showAddModal, setShowAddModal] = useState(false);
             const [showRecordPage, setShowRecordPage] = useState(false);
@@ -1538,10 +1552,22 @@ const AuthContext = createContext();
 
             const handleSaveCustomer = async () => {
                 if (!newName.trim()) { setSaveError('Name is required'); return; }
-                if (!organization?.id) { setSaveError('Organization not loaded yet — please wait a moment and try again'); return; }
                 setSaving(true); setSaveError('');
+
+                // Use prop org, or fetch it directly if not loaded yet
+                let orgId = organization?.id;
+                if (!orgId && user?.id) {
+                    const { data: orgData } = await supabase
+                        .from('organizations')
+                        .select('id')
+                        .eq('owner_id', user.id)
+                        .single();
+                    orgId = orgData?.id;
+                }
+                if (!orgId) { setSaveError('Could not find your organization. Please refresh and try again.'); setSaving(false); return; }
+
                 const { error } = await supabase.from('customers').insert({
-                    organization_id: organization.id,
+                    organization_id: orgId,
                     name: newName.trim(),
                     email: newEmail.trim(),
                     phone: newPhone.trim(),
@@ -1573,10 +1599,16 @@ const AuthContext = createContext();
             };
 
             const confirmImport = async () => {
+                let orgId = organization?.id;
+                if (!orgId && user?.id) {
+                    const { data: orgData } = await supabase.from('organizations').select('id').eq('owner_id', user.id).single();
+                    orgId = orgData?.id;
+                }
+                if (!orgId) { alert('Could not find organization. Please refresh.'); return; }
                 setImporting(true);
                 for (const row of importPreview) {
                     await supabase.from('customers').insert({
-                        organization_id: organization.id,
+                        organization_id: orgId,
                         name: row.name || row['full name'] || '',
                         email: row.email || '',
                         phone: row.phone || '',
@@ -1900,10 +1932,12 @@ const AuthContext = createContext();
                         setCustomer(customerData);
                     }
 
-                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false });
+                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('job_id', jobId).order('created_at', { ascending: false });
                     setNotes(notesData || []);
 
-                    const { data: transactionsData } = await supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false });
+                    const transactionsData = jobData.customer_id
+                        ? (await supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false })).data
+                        : [];
                     setTransactions(transactionsData || []);
                 } catch (err) {
                     console.error('Error loading job:', err);
@@ -1928,9 +1962,10 @@ const AuthContext = createContext();
                 try {
                     const { error } = await supabase.from('customer_notes').insert({
                         organization_id: organization.id,
-                        customer_id: job.customer_id,
+                        customer_id: job.customer_id || null,
+                        job_id: job.id,
                         created_by: user.id,
-                        note_text: `[Job: ${job.title}] ${newNote}`
+                        note_text: newNote.trim()
                     });
                     if (error) throw error;
                     setNewNote('');
@@ -2073,18 +2108,18 @@ const AuthContext = createContext();
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                {notes.filter(n => n.note_text.includes(`[Job: ${job.title}]`)).map(note => (
+                                {notes.map(note => (
                                     <div key={note.id} className="glass-card p-4">
                                         <div className="flex justify-between">
                                             <div className="flex-1">
                                                 <div className="text-sm text-gray-400 mb-2">{new Date(note.created_at).toLocaleString()}</div>
-                                                <div>{note.note_text.replace(`[Job: ${job.title}] `, '')}</div>
+                                                <div>{note.note_text}</div>
                                             </div>
                                             <button onClick={() => handleDeleteNote(note.id)} className="text-red-400 text-sm ml-4">Delete</button>
                                         </div>
                                     </div>
                                 ))}
-                                {notes.filter(n => n.note_text.includes(`[Job: ${job.title}]`)).length === 0 && (
+                                {notes.length === 0 && (
                                     <div className="text-center text-gray-400 py-8">No notes for this job yet</div>
                                 )}
                             </div>
