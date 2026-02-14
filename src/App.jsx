@@ -1392,89 +1392,116 @@ const AuthContext = createContext();
 
         // Create Job Modal
         const CreateJobModal = ({ customers, organizationId, onClose, onSuccess }) => {
-            const { user } = useAuth();
-            const [formData, setFormData] = useState({
-                customer_id: '',
-                title: '',
-                description: '',
-                status: 'pending',
-                priority: 'medium',
-                value: '',
-                scheduled_date: ''
-            });
+            const [title, setTitle] = useState('');
+            const [description, setDescription] = useState('');
+            const [customerId, setCustomerId] = useState('');
+            const [status, setStatus] = useState('new');
+            const [priority, setPriority] = useState('medium');
+            const [value, setValue] = useState('');
+            const [scheduledDate, setScheduledDate] = useState('');
             const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
 
-            const handleSubmit = async (e) => {
-                e.preventDefault();
+            const handleSubmit = async () => {
+                if (!title.trim()) { setError('Title is required'); return; }
+                if (!organizationId) { setError('Organization not loaded yet — please try again'); return; }
                 setLoading(true);
+                setError('');
                 try {
-                    const { error } = await supabase.from('jobs').insert({
+                    const { error: dbError } = await supabase.from('jobs').insert({
                         organization_id: organizationId,
-                        ...formData,
-                        value: formData.value ? parseFloat(formData.value) : 0
+                        title: title.trim(),
+                        description: description.trim(),
+                        customer_id: customerId || null,
+                        status,
+                        priority,
+                        value: value ? parseFloat(value) : 0,
+                        scheduled_date: scheduledDate || null,
                     });
-                    if (error) throw error;
-                    alert('Job created!');
+                    if (dbError) { setError(dbError.message); setLoading(false); return; }
                     onSuccess();
                 } catch (err) {
-                    alert('Error: ' + err.message);
-                } finally {
+                    setError(err.message || 'Something went wrong');
                     setLoading(false);
                 }
             };
 
+            const fieldStyle = {width:'100%', padding:'10px 14px', background:'rgba(26,26,46,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px'};
+            const labelStyle = {display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#a0a0b0'};
+
             return (
-                <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-                    <div style={{background:"#1a1a2e",border:"1px solid rgba(88,86,214,0.4)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
-                        <h2 className="heading-font text-2xl font-bold mb-6">Create Job</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
+                    <div onClick={e => e.stopPropagation()} style={{background:'#12121f',border:'1px solid rgba(88,86,214,0.5)',borderRadius:'12px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#e8e8ed'}}>
+                        <h2 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1.5rem'}}>Create Job</h2>
+
+                        {error && (
+                            <div style={{background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171',padding:'0.75rem',borderRadius:'8px',marginBottom:'1rem',fontSize:'0.875rem'}}>
+                                {error}
+                            </div>
+                        )}
+
+                        <div style={{marginBottom:'1rem'}}>
+                            <label style={labelStyle}>Customer</label>
+                            <select value={customerId} onChange={e => setCustomerId(e.target.value)} style={fieldStyle}>
+                                <option value="">Select customer (optional)</option>
+                                {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div style={{marginBottom:'1rem'}}>
+                            <label style={labelStyle}>Job Title *</label>
+                            <input type="text" placeholder="e.g. Roof repair, Plumbing inspection..." value={title} onChange={e => setTitle(e.target.value)} style={fieldStyle} />
+                        </div>
+
+                        <div style={{marginBottom:'1rem'}}>
+                            <label style={labelStyle}>Description</label>
+                            <textarea placeholder="Job details..." value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{...fieldStyle, resize:'vertical'}} />
+                        </div>
+
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
                             <div>
-                                <label className="block text-sm font-medium mb-2">Customer *</label>
-                                <select className="input-field" value={formData.customer_id} onChange={(e) => setFormData({...formData, customer_id: e.target.value})} required>
-                                    <option value="">Select customer...</option>
-                                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                <label style={labelStyle}>Status</label>
+                                <select value={status} onChange={e => setStatus(e.target.value)} style={fieldStyle}>
+                                    <option value="new">New</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="on_hold">On Hold</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-2">Title *</label>
-                                <input type="text" className="input-field" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
+                                <label style={labelStyle}>Priority</label>
+                                <select value={priority} onChange={e => setPriority(e.target.value)} style={fieldStyle}>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1.5rem'}}>
+                            <div>
+                                <label style={labelStyle}>Value ($)</label>
+                                <input type="number" step="0.01" placeholder="0.00" value={value} onChange={e => setValue(e.target.value)} style={fieldStyle} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-2">Description</label>
-                                <textarea className="input-field" rows="3" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                                <label style={labelStyle}>Scheduled Date</label>
+                                <input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} style={fieldStyle} />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Status</label>
-                                    <select className="input-field" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                                        <option value="pending">Pending</option>
-                                        <option value="in_progress">In Progress</option>
-                                        <option value="completed">Completed</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Priority</label>
-                                    <select className="input-field" value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})}>
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="urgent">Urgent</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Value ($)</label>
-                                <input type="number" step="0.01" className="input-field" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Scheduled Date</label>
-                                <input type="date" className="input-field" value={formData.scheduled_date} onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})} />
-                            </div>
-                            <div className="flex gap-4">
-                                <button type="submit" className="btn-primary flex-1" disabled={loading}>{loading ? 'Creating...' : 'Create Job'}</button>
-                                <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-                            </div>
-                        </form>
+                        </div>
+
+                        <div style={{display:'flex',gap:'0.75rem'}}>
+                            <button onClick={handleSubmit} disabled={loading}
+                                style={{flex:1,padding:'12px',background:'#5856d6',color:'white',border:'none',borderRadius:'8px',fontWeight:'600',cursor:loading?'not-allowed':'pointer',opacity:loading?0.7:1}}>
+                                {loading ? 'Creating...' : 'Create Job'}
+                            </button>
+                            <button onClick={onClose}
+                                style={{flex:1,padding:'12px',background:'rgba(255,255,255,0.05)',color:'#e8e8ed',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
@@ -1482,25 +1509,49 @@ const AuthContext = createContext();
 
         // Customers View
         const CustomersView = ({ customers, organization, onUpdate }) => {
-            // ALL hooks at the very top - never conditionally
+            // ALL hooks at the very top
             const [showAddModal, setShowAddModal] = useState(false);
             const [showRecordPage, setShowRecordPage] = useState(false);
             const [selectedCustomer, setSelectedCustomer] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [importing, setImporting] = useState(false);
             const [importPreview, setImportPreview] = useState(null);
-
-            // Guard - org not ready yet
-            if (!organization) return <div className="text-gray-400 p-8">Loading...</div>;
+            // Add customer form state (inlined — no separate component)
+            const [newName, setNewName] = useState('');
+            const [newEmail, setNewEmail] = useState('');
+            const [newPhone, setNewPhone] = useState('');
+            const [newAddress, setNewAddress] = useState('');
+            const [newNotes, setNewNotes] = useState('');
+            const [saving, setSaving] = useState(false);
+            const [saveError, setSaveError] = useState('');
 
             const filteredCustomers = (customers || []).filter(c =>
                 (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (c.email || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
 
-            const handleCustomerClick = (customer) => {
-                setSelectedCustomer(customer);
-                setShowRecordPage(true);
+            const openAddModal = () => {
+                setNewName(''); setNewEmail(''); setNewPhone('');
+                setNewAddress(''); setNewNotes(''); setSaveError('');
+                setShowAddModal(true);
+            };
+
+            const handleSaveCustomer = async () => {
+                if (!newName.trim()) { setSaveError('Name is required'); return; }
+                if (!organization?.id) { setSaveError('Organization not loaded yet — please wait a moment and try again'); return; }
+                setSaving(true); setSaveError('');
+                const { error } = await supabase.from('customers').insert({
+                    organization_id: organization.id,
+                    name: newName.trim(),
+                    email: newEmail.trim(),
+                    phone: newPhone.trim(),
+                    address: newAddress.trim(),
+                    notes: newNotes.trim(),
+                });
+                setSaving(false);
+                if (error) { setSaveError(error.message); return; }
+                setShowAddModal(false);
+                onUpdate();
             };
 
             const handleCSVUpload = (e) => {
@@ -1508,8 +1559,7 @@ const AuthContext = createContext();
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (evt) => {
-                    const text = evt.target.result;
-                    const lines = text.trim().split('\n');
+                    const lines = evt.target.result.trim().split('\n');
                     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
                     const rows = lines.slice(1).map(line => {
                         const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
@@ -1527,9 +1577,9 @@ const AuthContext = createContext();
                 for (const row of importPreview) {
                     await supabase.from('customers').insert({
                         organization_id: organization.id,
-                        name: row.name || row['full name'] || row['customer name'] || '',
+                        name: row.name || row['full name'] || '',
                         email: row.email || '',
-                        phone: row.phone || row['phone number'] || '',
+                        phone: row.phone || '',
                         address: row.address || '',
                         notes: row.notes || ''
                     });
@@ -1537,18 +1587,14 @@ const AuthContext = createContext();
                 setImportPreview(null);
                 setImporting(false);
                 onUpdate();
-                alert(`✅ Imported ${importPreview.length} customers!`);
+                alert('✅ Import complete!');
             };
 
             if (showRecordPage && selectedCustomer) {
                 return (
                     <CustomerRecordPage
                         customerId={selectedCustomer.id}
-                        onClose={() => {
-                            setShowRecordPage(false);
-                            setSelectedCustomer(null);
-                            onUpdate();
-                        }}
+                        onClose={() => { setShowRecordPage(false); setSelectedCustomer(null); onUpdate(); }}
                     />
                 );
             }
@@ -1562,20 +1608,13 @@ const AuthContext = createContext();
                                 📂 Import CSV
                                 <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
                             </label>
-                            <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-                                + Add Customer
-                            </button>
+                            <button className="btn-primary" onClick={openAddModal}>+ Add Customer</button>
                         </div>
                     </div>
 
                     <div className="glass-card p-6 mb-6">
-                        <input
-                            type="text"
-                            className="input-field"
-                            placeholder="Search customers..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                        <input type="text" className="input-field" placeholder="Search customers..."
+                            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
 
                     <div className="glass-card overflow-hidden">
@@ -1593,15 +1632,17 @@ const AuthContext = createContext();
                             <tbody>
                                 {filteredCustomers.map(customer => (
                                     <tr key={customer.id} className="table-row">
-                                        <td className="p-4 font-medium text-[#5856d6] hover:underline cursor-pointer" onClick={() => handleCustomerClick(customer)}>{customer.name}</td>
+                                        <td className="p-4 font-medium text-[#5856d6] hover:underline cursor-pointer"
+                                            onClick={() => { setSelectedCustomer(customer); setShowRecordPage(true); }}>
+                                            {customer.name}
+                                        </td>
                                         <td className="p-4 text-gray-400">{customer.email || '-'}</td>
                                         <td className="p-4 text-gray-400">{customer.phone || '-'}</td>
                                         <td className="p-4"><span className="badge badge-success">Active</span></td>
                                         <td className="p-4 text-gray-400">{new Date(customer.created_at).toLocaleDateString()}</td>
                                         <td className="p-4">
-                                            <button onClick={(e) => { e.stopPropagation(); handleCustomerClick(customer); }} className="btn-primary text-sm px-4 py-2">
-                                                View Details
-                                            </button>
+                                            <button onClick={() => { setSelectedCustomer(customer); setShowRecordPage(true); }}
+                                                className="btn-primary text-sm px-4 py-2">View Details</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -1613,35 +1654,88 @@ const AuthContext = createContext();
                             </div>
                         )}
                     </div>
+                    <div className="mt-4 text-sm text-gray-400">{(customers || []).length} customers</div>
 
-                    <div className="mt-4 text-sm text-gray-400">{customers.length} customers</div>
-
+                    {/* ── INLINE ADD CUSTOMER MODAL ── */}
                     {showAddModal && (
-                        <AddCustomerModal
-                            organizationId={organization.id}
-                            onClose={() => setShowAddModal(false)}
-                            onSuccess={() => { setShowAddModal(false); onUpdate(); }}
-                        />
+                        <div onClick={() => setShowAddModal(false)} style={{
+                            position: 'fixed', inset: 0,
+                            background: 'rgba(0,0,0,0.8)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 9999
+                        }}>
+                            <div onClick={e => e.stopPropagation()} style={{
+                                background: '#12121f',
+                                border: '1px solid rgba(88,86,214,0.5)',
+                                borderRadius: '12px',
+                                padding: '2rem',
+                                width: '100%', maxWidth: '480px',
+                                maxHeight: '90vh', overflowY: 'auto',
+                                color: '#e8e8ed'
+                            }}>
+                                <h2 style={{fontSize:'1.5rem', fontWeight:'700', marginBottom:'1.5rem'}}>Add New Customer</h2>
+
+                                {saveError && (
+                                    <div style={{background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.4)', color:'#f87171', padding:'0.75rem', borderRadius:'8px', marginBottom:'1rem', fontSize:'0.875rem'}}>
+                                        {saveError}
+                                    </div>
+                                )}
+
+                                {[
+                                    { label: 'Name *', value: newName, setter: setNewName, type: 'text', placeholder: 'Customer name' },
+                                    { label: 'Email', value: newEmail, setter: setNewEmail, type: 'email', placeholder: 'email@example.com' },
+                                    { label: 'Phone', value: newPhone, setter: setNewPhone, type: 'tel', placeholder: 'Phone number' },
+                                    { label: 'Address', value: newAddress, setter: setNewAddress, type: 'text', placeholder: 'Street address' },
+                                ].map(f => (
+                                    <div key={f.label} style={{marginBottom:'1rem'}}>
+                                        <label style={{display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#a0a0b0'}}>{f.label}</label>
+                                        <input type={f.type} placeholder={f.placeholder} value={f.value}
+                                            onChange={e => f.setter(e.target.value)}
+                                            style={{width:'100%', padding:'10px 14px', background:'rgba(26,26,46,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px'}}
+                                        />
+                                    </div>
+                                ))}
+
+                                <div style={{marginBottom:'1.5rem'}}>
+                                    <label style={{display:'block', fontSize:'0.875rem', fontWeight:'500', marginBottom:'0.5rem', color:'#a0a0b0'}}>Notes</label>
+                                    <textarea placeholder="Any notes..." value={newNotes} onChange={e => setNewNotes(e.target.value)} rows={3}
+                                        style={{width:'100%', padding:'10px 14px', background:'rgba(26,26,46,0.9)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', color:'#e8e8ed', fontSize:'14px', resize:'vertical'}}
+                                    />
+                                </div>
+
+                                <div style={{display:'flex', gap:'0.75rem'}}>
+                                    <button onClick={handleSaveCustomer} disabled={saving}
+                                        style={{flex:1, padding:'12px', background:'#5856d6', color:'white', border:'none', borderRadius:'8px', fontWeight:'600', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1}}>
+                                        {saving ? 'Adding...' : 'Add Customer'}
+                                    </button>
+                                    <button onClick={() => setShowAddModal(false)}
+                                        style={{flex:1, padding:'12px', background:'rgba(255,255,255,0.05)', color:'#e8e8ed', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', fontWeight:'600', cursor:'pointer'}}>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
 
+                    {/* ── CSV IMPORT MODAL ── */}
                     {importPreview && (
-                        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}} onClick={() => setImportPreview(null)}>
-                            <div style={{background:'#1a1a2e',border:'1px solid rgba(88,86,214,0.4)',borderRadius:'16px',padding:'2rem',width:'90%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto'}} onClick={e => e.stopPropagation()}>
-                                <h2 className="heading-font text-2xl font-bold mb-4">Import Preview ({importPreview.length} customers)</h2>
-                                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-                                    {importPreview.slice(0, 10).map((row, i) => (
-                                        <div key={i} className="glass-card p-3 text-sm">
-                                            <div className="font-medium">{row.name || row['full name'] || '(no name)'}</div>
-                                            <div className="text-gray-400">{row.email} {row.phone ? '· ' + row.phone : ''}</div>
+                        <div onClick={() => setImportPreview(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
+                            <div onClick={e => e.stopPropagation()} style={{background:'#12121f',border:'1px solid rgba(88,86,214,0.5)',borderRadius:'12px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#e8e8ed'}}>
+                                <h2 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>Preview: {importPreview.length} customers</h2>
+                                <div style={{maxHeight:'240px',overflowY:'auto',marginBottom:'1.5rem'}}>
+                                    {importPreview.slice(0,10).map((row,i) => (
+                                        <div key={i} style={{padding:'0.75rem',background:'rgba(255,255,255,0.05)',borderRadius:'8px',marginBottom:'0.5rem',fontSize:'0.875rem'}}>
+                                            <div style={{fontWeight:'600'}}>{row.name||'(no name)'}</div>
+                                            <div style={{color:'#a0a0b0'}}>{row.email} {row.phone?'· '+row.phone:''}</div>
                                         </div>
                                     ))}
-                                    {importPreview.length > 10 && <div className="text-gray-400 text-sm">...and {importPreview.length - 10} more</div>}
+                                    {importPreview.length > 10 && <div style={{color:'#a0a0b0',fontSize:'0.875rem'}}>...and {importPreview.length-10} more</div>}
                                 </div>
-                                <div className="flex gap-3">
-                                    <button onClick={confirmImport} disabled={importing} className="btn-primary flex-1">
-                                        {importing ? 'Importing...' : `Import ${importPreview.length} Customers`}
+                                <div style={{display:'flex',gap:'0.75rem'}}>
+                                    <button onClick={confirmImport} disabled={importing} style={{flex:1,padding:'12px',background:'#5856d6',color:'white',border:'none',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>
+                                        {importing ? 'Importing...' : `Import ${importPreview.length}`}
                                     </button>
-                                    <button onClick={() => setImportPreview(null)} className="btn-secondary">Cancel</button>
+                                    <button onClick={() => setImportPreview(null)} style={{flex:1,padding:'12px',background:'rgba(255,255,255,0.05)',color:'#e8e8ed',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>Cancel</button>
                                 </div>
                             </div>
                         </div>
@@ -2190,7 +2284,7 @@ const AuthContext = createContext();
                     {showCreateModal && (
                         <CreateJobModal 
                             customers={customers}
-                            organizationId={organization.id}
+                            organizationId={organization?.id}
                             onClose={() => setShowCreateModal(false)}
                             onSuccess={() => {
                                 setShowCreateModal(false);
