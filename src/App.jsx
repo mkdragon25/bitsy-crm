@@ -62,36 +62,28 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                // 1️⃣ Try to load the org row
+                // Try to load existing org row
                 const { data, error } = await supabase
                     .from('organizations')
                     .select('*')
                     .eq('owner_id', userId)
                     .single();
 
-                if (data) {
-                    setOrganization(data);
-                    return;
-                }
+                if (data) { setOrganization(data); return; }
 
-                // 2️⃣ Check what kind of failure it was
+                // Table missing entirely — schema not run yet, bail out
                 const errMsg = error?.message || '';
+                if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('42P01')) return;
 
-                // Table doesn't exist at all → schema not run yet
-                if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('42P01')) {
-                    console.error('Schema not set up — tables missing');
-                    return; // orgLoadFailed timeout will handle UI
-                }
-
-                // 3️⃣ Table exists but no row found — user signed up before tables were created
-                // Try to auto-create org from metadata saved during signup
-                console.warn('No org row found — attempting auto-create from metadata...');
+                // Table exists but no row — try auto-create from signup metadata
                 try {
-                    const { data: { user: currentUser } } = await supabase.auth.getUser();
-                    const meta = currentUser?.user_metadata || {};
-                    const orgName = meta.organization_name || meta.full_name ? `${meta.full_name}'s Business` : currentUser?.email?.split('@')[0] || 'My Business';
-
-                    const { data: newOrg, error: insertErr } = await supabase
+                    const { data: metaRes } = await supabase.auth.getUser();
+                    const meta = metaRes?.user?.user_metadata || {};
+                    const orgName = meta.organization_name
+                        || (meta.full_name ? meta.full_name + "'s Business" : null)
+                        || metaRes?.user?.email?.split('@')[0]
+                        || 'My Business';
+                    const { data: newOrg } = await supabase
                         .from('organizations')
                         .insert({
                             owner_id: userId,
@@ -107,16 +99,8 @@ const AuthContext = createContext();
                         })
                         .select()
                         .single();
-
-                    if (newOrg) {
-                        console.log('✅ Auto-created org:', newOrg.name);
-                        setOrganization(newOrg);
-                        return;
-                    }
-                    console.error('Auto-create failed:', insertErr?.message);
-                } catch (e) {
-                    console.error('Auto-create exception:', e.message);
-                }
+                    if (newOrg) setOrganization(newOrg);
+                } catch (e) { /* silent — Dashboard diagnostic timeout will handle */ }
             };
 
             const signUp = async (email, password, organizationName, plan, fullName, businessDescription, industry, teamSize) => {
@@ -966,6 +950,7 @@ const AuthContext = createContext();
             const [activeTab, setActiveTab] = useState('dashboard');
             const [sidebarOpen, setSidebarOpen] = useState(false);
             const [orgLoadFailed, setOrgLoadFailed] = useState(false);
+            const [orgDebugInfo, setOrgDebugInfo] = useState([]);
             const [customers, setCustomers] = useState([]);
             const [jobs, setJobs] = useState([]);
             const [teamMembers, setTeamMembers] = useState([]);
@@ -983,11 +968,59 @@ const AuthContext = createContext();
                 }
             }, [organization]);
 
-            // If org doesn't load within 6 seconds, show error
+            // If org doesn't load within 3 seconds, run diagnostics and show error
             useEffect(() => {
                 if (organization) return;
-                const timer = setTimeout(() => {
-                    if (!organization) setOrgLoadFailed(true);
+                const timer = setTimeout(async () => {
+                    if (organization) return;
+                    const log = [];
+                    try {
+                        log.push(`user.id: ${user?.id}`);
+                        log.push(`user.email: ${user?.email}`);
+
+                        // Can we reach the organizations table?
+                        const { data, error } = await supabase
+                            .from('organizations')
+                            .select('id, name, owner_id')
+                            .eq('owner_id', user?.id);
+                        log.push(`select result: ${JSON.stringify({data, error})}`);
+
+                        // Try inserting a new org row
+                        const { data: metaRes } = await supabase.auth.getUser();
+                        const m = metaRes?.user?.user_metadata || {};
+                        const orgName = m.organization_name
+                            || (m.full_name ? m.full_name + "'s Business" : null)
+                            || user?.email?.split('@')[0]
+                            || 'My Business';
+                        log.push(`attempting insert with name: ${orgName}`);
+                        const { data: inserted, error: insertErr } = await supabase
+                            .from('organizations')
+                            .insert({
+                                owner_id: user?.id,
+                                name: orgName,
+                                business_description: m.business_description || '',
+                                industry: m.industry || '',
+                                team_size: m.team_size || '',
+                                plan: m.plan || 'per_user',
+                                pricing_model: 'per_user',
+                                price_per_user: 27,
+                                active_users: 1,
+                                subscription_status: 'active'
+                            })
+                            .select()
+                            .single();
+                        log.push(`insert result: ${JSON.stringify({data: inserted, error: insertErr})}`);
+
+                        if (inserted) {
+                            // Success — reload to pick up the new org
+                            window.location.reload();
+                            return;
+                        }
+                    } catch(e) {
+                        log.push(`exception: ${e.message}`);
+                    }
+                    setOrgDebugInfo(log);
+                    setOrgLoadFailed(true);
                 }, 3000);
                 return () => clearTimeout(timer);
             }, [organization]);
@@ -1050,6 +1083,14 @@ const AuthContext = createContext();
                                     <button onClick={() => window.location.reload()} className="btn-primary" style={{marginTop:'0.5rem'}}>
                                         🔄 I ran the SQL — Reload Now
                                     </button>
+                                    {orgDebugInfo.length > 0 && (
+                                        <div style={{marginTop:'1rem',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(160,163,196,0.2)',borderRadius:'8px',padding:'1rem',maxWidth:'600px',textAlign:'left'}}>
+                                            <div style={{color:'#FFD93D',fontWeight:'600',marginBottom:'0.5rem',fontSize:'0.8rem'}}>🔍 Debug Info — copy this and send it</div>
+                                            {orgDebugInfo.map((line, i) => (
+                                                <div key={i} style={{fontSize:'0.72rem',color:'#A0A3C4',fontFamily:'monospace',wordBreak:'break-all',marginBottom:'0.25rem'}}>{line}</div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </>
                             ) : (
                                 <>
