@@ -62,13 +62,24 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                const { data, error } = await supabase
-                    .from('organizations')
-                    .select('*')
-                    .eq('owner_id', userId)
-                    .single();
-                
-                if (data) setOrganization(data);
+                // Try up to 3 times in case of timing issues
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    const { data, error } = await supabase
+                        .from('organizations')
+                        .select('*')
+                        .eq('owner_id', userId)
+                        .single();
+                    
+                    if (data) {
+                        setOrganization(data);
+                        return;
+                    }
+                    if (error) {
+                        console.warn(`loadOrganization attempt ${attempt} failed:`, error.message);
+                    }
+                    if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
+                }
+                console.error('Could not load organization after 3 attempts');
             };
 
             const signUp = async (email, password, organizationName, plan, fullName, businessDescription, industry, teamSize) => {
@@ -917,6 +928,7 @@ const AuthContext = createContext();
             const { user, organization, isSuperAdmin, signOut } = useAuth();
             const [activeTab, setActiveTab] = useState('dashboard');
             const [sidebarOpen, setSidebarOpen] = useState(false);
+            const [orgLoadFailed, setOrgLoadFailed] = useState(false);
             const [customers, setCustomers] = useState([]);
             const [jobs, setJobs] = useState([]);
             const [teamMembers, setTeamMembers] = useState([]);
@@ -932,6 +944,15 @@ const AuthContext = createContext();
                 if (organization) {
                     loadData();
                 }
+            }, [organization]);
+
+            // If org doesn't load within 6 seconds, show error
+            useEffect(() => {
+                if (organization) return;
+                const timer = setTimeout(() => {
+                    if (!organization) setOrgLoadFailed(true);
+                }, 6000);
+                return () => clearTimeout(timer);
             }, [organization]);
 
             const loadData = async () => {
@@ -973,6 +994,29 @@ const AuthContext = createContext();
             };
 
             const renderContent = () => {
+                // If org isn't loaded yet, show a spinner instead of crashing children
+                if (!organization && activeTab !== 'dashboard') {
+                    return (
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60vh',gap:'1rem',textAlign:'center',padding:'2rem'}}>
+                            {orgLoadFailed ? (
+                                <>
+                                    <div style={{fontSize:'2rem'}}>⚠️</div>
+                                    <div style={{color:'#f87171',fontWeight:'600'}}>Could not load your organization</div>
+                                    <div style={{color:'#9ca3af',fontSize:'0.875rem',maxWidth:'400px'}}>
+                                        This usually means the Supabase database tables haven't been created yet.
+                                        Please run the <strong>supabase-schema.sql</strong> file in your Supabase SQL Editor, then refresh this page.
+                                    </div>
+                                    <button onClick={() => window.location.reload()} className="btn-primary">Refresh Page</button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="loading-spinner"></div>
+                                    <div className="text-gray-400">Loading your account...</div>
+                                </>
+                            )}
+                        </div>
+                    );
+                }
                 switch(activeTab) {
                     case 'dashboard':
                         return <DashboardHome stats={stats} setActiveTab={setActiveTab} />;
@@ -1392,7 +1436,8 @@ const AuthContext = createContext();
 
         // Create Job Modal
         const CreateJobModal = ({ customers, organizationId, onClose, onSuccess }) => {
-            const { user } = useAuth();
+            const { user, organization: authOrg } = useAuth();
+            const resolvedOrgId = organizationId || authOrg?.id;
             const [title, setTitle] = useState('');
             const [description, setDescription] = useState('');
             const [customerId, setCustomerId] = useState('');
@@ -1409,16 +1454,8 @@ const AuthContext = createContext();
                 setError('');
 
                 // Use prop orgId, or fetch it directly if not loaded yet
-                let orgId = organizationId;
-                if (!orgId && user?.id) {
-                    const { data: orgData } = await supabase
-                        .from('organizations')
-                        .select('id')
-                        .eq('owner_id', user.id)
-                        .single();
-                    orgId = orgData?.id;
-                }
-                if (!orgId) { setError('Could not find your organization. Please refresh and try again.'); setLoading(false); return; }
+                const orgId = resolvedOrgId;
+                if (!orgId) { setError('Still loading your account — please wait 2 seconds and try again.'); setLoading(false); return; }
 
                 try {
                     const { error: dbError } = await supabase.from('jobs').insert({
@@ -1521,8 +1558,9 @@ const AuthContext = createContext();
         };
 
         // Customers View
-        const CustomersView = ({ customers, organization, onUpdate }) => {
-            const { user } = useAuth();
+        const CustomersView = ({ customers, organization: orgProp, onUpdate }) => {
+            const { user, organization: authOrg } = useAuth();
+            const organization = orgProp || authOrg;
             // ALL hooks at the very top
             const [showAddModal, setShowAddModal] = useState(false);
             const [showRecordPage, setShowRecordPage] = useState(false);
@@ -1555,16 +1593,8 @@ const AuthContext = createContext();
                 setSaving(true); setSaveError('');
 
                 // Use prop org, or fetch it directly if not loaded yet
-                let orgId = organization?.id;
-                if (!orgId && user?.id) {
-                    const { data: orgData } = await supabase
-                        .from('organizations')
-                        .select('id')
-                        .eq('owner_id', user.id)
-                        .single();
-                    orgId = orgData?.id;
-                }
-                if (!orgId) { setSaveError('Could not find your organization. Please refresh and try again.'); setSaving(false); return; }
+                const orgId = organization?.id;
+                if (!orgId) { setSaveError('Still loading your account — please wait 2 seconds and try again.'); setSaving(false); return; }
 
                 const { error } = await supabase.from('customers').insert({
                     organization_id: orgId,
@@ -1599,12 +1629,8 @@ const AuthContext = createContext();
             };
 
             const confirmImport = async () => {
-                let orgId = organization?.id;
-                if (!orgId && user?.id) {
-                    const { data: orgData } = await supabase.from('organizations').select('id').eq('owner_id', user.id).single();
-                    orgId = orgData?.id;
-                }
-                if (!orgId) { alert('Could not find organization. Please refresh.'); return; }
+                const orgId = organization?.id;
+                if (!orgId) { alert('Still loading — please wait a moment and try again.'); return; }
                 setImporting(true);
                 for (const row of importPreview) {
                     await supabase.from('customers').insert({
