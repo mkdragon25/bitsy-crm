@@ -21,20 +21,33 @@ const AuthContext = createContext();
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
+            // Prevent concurrent or redundant loadOrganization calls
+            const loadingOrgRef = React.useRef(false);
+            const orgLoadedRef  = React.useRef(false);
 
             useEffect(() => {
-                // onAuthStateChange fires immediately with the current session on mount
-                // (INITIAL_SESSION event) — so we don't need a separate checkUser call
                 const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (session?.user) {
-                        setUser(session.user);
-                        await loadOrganization(session.user.id);
-                        await checkSuperAdmin(session.user.email);
-                    } else {
+                    // TOKEN_REFRESHED and USER_UPDATED don't need a full reload —
+                    // only act on events that represent a real login/logout change
+                    if (event === 'SIGNED_OUT') {
                         setUser(null);
                         setOrganization(null);
+                        orgLoadedRef.current = false;
+                        setLoading(false);
+                        return;
                     }
-                    // Always mark loading done after first event
+
+                    if (session?.user) {
+                        setUser(session.user);
+                        // Only load org if not already loading or already loaded
+                        if (!loadingOrgRef.current) {
+                            loadingOrgRef.current = true;
+                            await loadOrganization(session.user.id);
+                            await checkSuperAdmin(session.user.email);
+                            loadingOrgRef.current = false;
+                        }
+                    }
+
                     setLoading(false);
                 });
 
@@ -54,6 +67,9 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
+                // Already loaded — no need to re-fetch
+                if (orgLoadedRef.current) return;
+
                 // Try to load existing org row
                 const { data, error } = await supabase
                     .from('organizations')
@@ -61,7 +77,7 @@ const AuthContext = createContext();
                     .eq('owner_id', userId)
                     .single();
 
-                if (data) { setOrganization(data); return; }
+                if (data) { setOrganization(data); orgLoadedRef.current = true; return; }
 
                 // Table missing entirely — schema not run yet, bail out
                 const errMsg = error?.message || '';
@@ -91,7 +107,7 @@ const AuthContext = createContext();
                         })
                         .select()
                         .single();
-                    if (newOrg) setOrganization(newOrg);
+                    if (newOrg) { setOrganization(newOrg); orgLoadedRef.current = true; }
                 } catch (e) { /* silent — Dashboard diagnostic timeout will handle */ }
             };
 
