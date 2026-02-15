@@ -969,41 +969,31 @@ const AuthContext = createContext();
             }, [organization]);
 
             const loadData = async () => {
-                // Load customers
-                const { data: customersData } = await supabase
-                    .from('customers')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setCustomers(customersData || []);
-
-                // Load jobs
-                const { data: jobsData } = await supabase
-                    .from('jobs')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setJobs(jobsData || []);
-
-                // Load team members
-                const { data: teamData } = await supabase
-                    .from('team_members')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setTeamMembers(teamData || []);
-
-                // Load tasks for calendar
-                const { data: tasksData } = await supabase
-                    .from('tasks')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setTasks(tasksData || []);
-
-                // Calculate stats
-                setStats({
-                    totalCustomers: customersData?.length || 0,
-                    activeJobs: jobsData?.filter(j => j.status !== 'completed').length || 0,
-                    completedJobs: jobsData?.filter(j => j.status === 'completed').length || 0,
-                    revenue: jobsData?.reduce((sum, j) => sum + (j.value || 0), 0) || 0
-                });
+                if (!organization?.id) return;
+                try {
+                    const [customersRes, jobsRes, teamRes, tasksRes] = await Promise.all([
+                        supabase.from('customers').select('*').eq('organization_id', organization.id),
+                        supabase.from('jobs').select('*').eq('organization_id', organization.id),
+                        supabase.from('team_members').select('*').eq('organization_id', organization.id),
+                        supabase.from('tasks').select('*').eq('organization_id', organization.id),
+                    ]);
+                    const customersData = customersRes.data || [];
+                    const jobsData      = jobsRes.data      || [];
+                    const teamData      = teamRes.data      || [];
+                    const tasksData     = tasksRes.data     || [];
+                    setCustomers(customersData);
+                    setJobs(jobsData);
+                    setTeamMembers(teamData);
+                    setTasks(tasksData);
+                    setStats({
+                        totalCustomers: customersData.length,
+                        activeJobs:     jobsData.filter(j => j.status !== 'completed').length,
+                        completedJobs:  jobsData.filter(j => j.status === 'completed').length,
+                        revenue:        jobsData.reduce((sum, j) => sum + (j.value || 0), 0),
+                    });
+                } catch(e) {
+                    console.error('loadData error:', e.message);
+                }
             };
 
             const renderContent = () => {
@@ -1184,7 +1174,7 @@ const AuthContext = createContext();
         // CUSTOMER RECORD PAGE COMPONENT
         // ============================================
         const CustomerRecordPage = ({ customerId, onClose }) => {
-            const { user } = useAuth();
+            const { user, organization } = useAuth();
             const [customer, setCustomer] = useState(null);
             const [notes, setNotes] = useState([]);
             const [transactions, setTransactions] = useState([]);
@@ -1194,7 +1184,6 @@ const AuthContext = createContext();
             const [showEditModal, setShowEditModal] = useState(false);
             const [newNote, setNewNote] = useState('');
             const [savingNote, setSavingNote] = useState(false);
-            const [organization, setOrganization] = useState(null);
 
             useEffect(() => {
                 loadCustomerData();
@@ -1203,20 +1192,17 @@ const AuthContext = createContext();
             const loadCustomerData = async () => {
                 setLoading(true);
                 try {
-                    const { data: orgData } = await supabase.from('organizations').select('*').eq('owner_id', user.id).single();
-                    setOrganization(orgData);
-
-                    const { data: customerData } = await supabase.from('customers').select('*').eq('id', customerId).single();
-                    setCustomer(customerData);
-
-                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-                    setNotes(notesData || []);
-
-                    const { data: transactionsData } = await supabase.from('transactions').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-                    setTransactions(transactionsData || []);
-
-                    const { data: jobsData } = await supabase.from('jobs').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-                    setJobs(jobsData || []);
+                    // Fetch everything in parallel — no sequential stalling
+                    const [customerRes, notesRes, txRes, jobsRes] = await Promise.all([
+                        supabase.from('customers').select('*').eq('id', customerId).single(),
+                        supabase.from('customer_notes').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                        supabase.from('transactions').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                        supabase.from('jobs').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                    ]);
+                    setCustomer(customerRes.data);
+                    setNotes(notesRes.data || []);
+                    setTransactions(txRes.data || []);
+                    setJobs(jobsRes.data || []);
                 } catch (err) {
                     console.error('Error loading customer:', err);
                 } finally {
@@ -1948,7 +1934,7 @@ const AuthContext = createContext();
         // JOB DETAIL PAGE COMPONENT
         // ============================================
         const JobDetailPage = ({ jobId, onClose }) => {
-            const { user } = useAuth();
+            const { user, organization } = useAuth();
             const [job, setJob] = useState(null);
             const [customer, setCustomer] = useState(null);
             const [notes, setNotes] = useState([]);
@@ -1957,7 +1943,6 @@ const AuthContext = createContext();
             const [showEditModal, setShowEditModal] = useState(false);
             const [newNote, setNewNote] = useState('');
             const [savingNote, setSavingNote] = useState(false);
-            const [organization, setOrganization] = useState(null);
 
             useEffect(() => {
                 loadJobData();
@@ -1966,24 +1951,24 @@ const AuthContext = createContext();
             const loadJobData = async () => {
                 setLoading(true);
                 try {
-                    const { data: orgData } = await supabase.from('organizations').select('*').eq('owner_id', user.id).single();
-                    setOrganization(orgData);
-
-                    const { data: jobData } = await supabase.from('jobs').select('*').eq('id', jobId).single();
+                    // Fetch job and notes in parallel
+                    const [jobRes, notesRes] = await Promise.all([
+                        supabase.from('jobs').select('*').eq('id', jobId).single(),
+                        supabase.from('customer_notes').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
+                    ]);
+                    const jobData = jobRes.data;
                     setJob(jobData);
+                    setNotes(notesRes.data || []);
 
-                    if (jobData.customer_id) {
-                        const { data: customerData } = await supabase.from('customers').select('*').eq('id', jobData.customer_id).single();
-                        setCustomer(customerData);
+                    // If job has a customer, fetch customer + transactions in parallel
+                    if (jobData?.customer_id) {
+                        const [customerRes, txRes] = await Promise.all([
+                            supabase.from('customers').select('*').eq('id', jobData.customer_id).single(),
+                            supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false }),
+                        ]);
+                        setCustomer(customerRes.data);
+                        setTransactions(txRes.data || []);
                     }
-
-                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('job_id', jobId).order('created_at', { ascending: false });
-                    setNotes(notesData || []);
-
-                    const transactionsData = jobData.customer_id
-                        ? (await supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false })).data
-                        : [];
-                    setTransactions(transactionsData || []);
                 } catch (err) {
                     console.error('Error loading job:', err);
                 } finally {
@@ -2586,10 +2571,15 @@ const PipelineView = ({ organization, onUpdate }) => {
     useEffect(() => { loadData(); }, [organization]);
 
     const loadData = async () => {
-        const { data: dealsData } = await supabase.from('deals').select('*').eq('organization_id', organization.id).eq('status', 'active');
-        setDeals(dealsData || []);
-        const { data: customersData } = await supabase.from('customers').select('*').eq('organization_id', organization.id);
-        setCustomers(customersData || []);
+        if (!organization?.id) return;
+        try {
+            const [dealsRes, customersRes] = await Promise.all([
+                supabase.from('deals').select('*').eq('organization_id', organization.id).eq('status', 'active'),
+                supabase.from('customers').select('*').eq('organization_id', organization.id),
+            ]);
+            setDeals(dealsRes.data || []);
+            setCustomers(customersRes.data || []);
+        } catch(e) { console.error('Pipeline loadData:', e.message); }
     };
 
     const handleDrop = async (stage) => {
