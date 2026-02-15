@@ -2677,45 +2677,129 @@ const PipelineView = ({ organization, onUpdate }) => {
 
 const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
     const { user } = useAuth();
-    const [formData, setFormData] = useState({ title: '', customer_id: '', value: '', probability: 50, stage: 'lead', next_follow_up: '', description: '' });
+    const [title, setTitle] = useState('');
+    const [customerId, setCustomerId] = useState('');
+    const [value, setValue] = useState('');
+    const [probability, setProbability] = useState(50);
+    const [stage, setStage] = useState('lead');
+    const [nextFollowUp, setNextFollowUp] = useState('');
+    const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async () => {
+        if (!title.trim()) { setError('Title is required'); return; }
         setLoading(true);
-        try {
-            const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4 };
-            await supabase.from('deals').insert({
-                organization_id: organization.id, created_by: user.id, ...formData,
-                value: parseFloat(formData.value) || 0, stage_order: stageOrders[formData.stage] || 0, status: 'active'
-            });
-            alert('Deal created!');
-            onSuccess();
-        } catch (err) {
-            alert('Error: ' + err.message);
-        } finally {
-            setLoading(false);
+        setError('');
+        const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4 };
+
+        // Get org id — use prop or fetch directly
+        let orgId = organization?.id;
+        if (!orgId) {
+            const { data: orgData } = await supabase.from('organizations').select('id').eq('owner_id', user.id).single();
+            orgId = orgData?.id;
         }
+        console.log('[CreateDeal] orgId:', orgId, '  userId:', user?.id);
+        if (!orgId) { setError('Could not find your organization. Please refresh.'); setLoading(false); return; }
+
+        const payload = {
+            organization_id: orgId,
+            created_by: user.id,
+            title: title.trim(),
+            description: description.trim(),
+            customer_id: customerId || null,
+            value: parseFloat(value) || 0,
+            probability: parseInt(probability) || 50,
+            stage,
+            stage_order: stageOrders[stage] || 0,
+            next_follow_up: nextFollowUp || null,
+            status: 'active'
+        };
+        console.log('[CreateDeal] inserting:', payload);
+
+        const { data: inserted, error: dbError } = await supabase.from('deals').insert(payload).select().single();
+        console.log('[CreateDeal] result — data:', inserted, '  error:', dbError);
+
+        setLoading(false);
+        if (dbError) { 
+            console.error('[CreateDeal] FAILED:', dbError);
+            setError(dbError.message);
+            alert('Deal save failed: ' + dbError.message);
+            return; 
+        }
+        onSuccess();
     };
 
+    const fieldStyle = {width:'100%',padding:'10px 14px',background:'rgba(17,18,54,0.90)',border:'1px solid rgba(160,163,196,0.20)',borderRadius:'8px',color:'#E8E8F0',fontSize:'14px'};
+    const labelStyle = {display:'block',fontSize:'0.8rem',fontWeight:'500',marginBottom:'0.4rem',color:'#A0A3C4'};
+
     return (
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
-                <h2 className="heading-font text-2xl font-bold mb-6">Create New Deal</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input type="text" className="input-field" placeholder="Deal Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
-                    <div className="grid grid-cols-2 gap-4">
-                        <select className="input-field" value={formData.customer_id} onChange={(e) => setFormData({...formData, customer_id: e.target.value})}>
+        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
+            <div onClick={e => e.stopPropagation()} style={{background:'#1A1B4B',border:'1px solid rgba(255,217,61,0.25)',borderRadius:'16px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#E8E8F0'}}>
+                <h2 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1.5rem'}}>Create New Deal</h2>
+
+                {error && (
+                    <div style={{background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171',padding:'0.75rem',borderRadius:'8px',marginBottom:'1rem',fontSize:'0.875rem'}}>
+                        {error}
+                    </div>
+                )}
+
+                <div style={{marginBottom:'1rem'}}>
+                    <label style={labelStyle}>Deal Title *</label>
+                    <input type="text" placeholder="e.g. Website Redesign for Acme Co" value={title} onChange={e => setTitle(e.target.value)} style={fieldStyle} />
+                </div>
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                    <div>
+                        <label style={labelStyle}>Customer</label>
+                        <select value={customerId} onChange={e => setCustomerId(e.target.value)} style={fieldStyle}>
                             <option value="">Select customer...</option>
-                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input type="number" step="0.01" className="input-field" placeholder="Value ($)" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} />
                     </div>
-                    <div className="flex gap-4">
-                        <button type="submit" className="btn-primary flex-1" disabled={loading}>{loading ? 'Creating...' : 'Create Deal'}</button>
-                        <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+                    <div>
+                        <label style={labelStyle}>Value ($)</label>
+                        <input type="number" step="0.01" placeholder="0.00" value={value} onChange={e => setValue(e.target.value)} style={fieldStyle} />
                     </div>
-                </form>
+                </div>
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                    <div>
+                        <label style={labelStyle}>Stage</label>
+                        <select value={stage} onChange={e => setStage(e.target.value)} style={fieldStyle}>
+                            <option value="lead">Lead</option>
+                            <option value="contacted">Contacted</option>
+                            <option value="qualified">Qualified</option>
+                            <option value="proposal">Proposal</option>
+                            <option value="negotiation">Negotiation</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style={labelStyle}>Probability (%)</label>
+                        <input type="number" min="0" max="100" value={probability} onChange={e => setProbability(e.target.value)} style={fieldStyle} />
+                    </div>
+                </div>
+
+                <div style={{marginBottom:'1rem'}}>
+                    <label style={labelStyle}>Next Follow-up Date</label>
+                    <input type="date" value={nextFollowUp} onChange={e => setNextFollowUp(e.target.value)} style={fieldStyle} />
+                </div>
+
+                <div style={{marginBottom:'1.5rem'}}>
+                    <label style={labelStyle}>Description</label>
+                    <textarea placeholder="Deal notes..." value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{...fieldStyle, resize:'vertical'}} />
+                </div>
+
+                <div style={{display:'flex',gap:'0.75rem'}}>
+                    <button onClick={handleSubmit} disabled={loading}
+                        style={{flex:1,padding:'12px',background:'#FFD93D',color:'#0D0E2E',border:'none',borderRadius:'8px',fontWeight:'700',cursor:loading?'not-allowed':'pointer',opacity:loading?0.7:1}}>
+                        {loading ? 'Creating...' : 'Create Deal'}
+                    </button>
+                    <button onClick={onClose}
+                        style={{flex:1,padding:'12px',background:'rgba(160,163,196,0.1)',color:'#E8E8F0',border:'1px solid rgba(160,163,196,0.25)',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     );
