@@ -1439,6 +1439,16 @@ const AuthContext = createContext();
             );
         };
 
+        // ── Shared job badge helpers (used by JobDetailPage and JobsView) ──
+        const getStatusBadge = (status) => {
+            const badges = { pending:'badge-warning', in_progress:'badge-info', completed:'badge-success', invoiced:'badge-info', paid:'badge-success', cancelled:'badge-error' };
+            return badges[status] || 'badge-warning';
+        };
+        const getPriorityBadge = (priority) => {
+            const badges = { low:'badge-success', medium:'badge-info', high:'badge-warning', urgent:'badge-error' };
+            return badges[priority] || 'badge-info';
+        };
+
         // Create Job Modal
         const CreateJobModal = ({ customers, organizationId, onClose, onSuccess }) => {
             const { user, organization: authOrg } = useAuth();
@@ -2018,28 +2028,6 @@ const AuthContext = createContext();
                 }
             };
 
-            const getStatusBadge = (status) => {
-                const badges = {
-                    pending: 'badge-warning',
-                    in_progress: 'badge-info',
-                    completed: 'badge-success',
-                    invoiced: 'badge-info',
-                    paid: 'badge-success',
-                    cancelled: 'badge-error'
-                };
-                return badges[status] || 'badge-warning';
-            };
-
-            const getPriorityBadge = (priority) => {
-                const badges = {
-                    low: 'badge-success',
-                    medium: 'badge-info',
-                    high: 'badge-warning',
-                    urgent: 'badge-error'
-                };
-                return badges[priority] || 'badge-info';
-            };
-
             if (loading) {
                 return React.createElement('div', { className: 'min-h-screen flex items-center justify-center' },
                     React.createElement('div', { className: 'text-2xl' }, 'Loading...')
@@ -2063,8 +2051,8 @@ const AuthContext = createContext();
                                 <button onClick={onClose} className="text-gray-400 hover:text-white mb-4 flex items-center gap-2">← Back to Jobs</button>
                                 <h1 className="heading-font text-4xl font-bold mb-2">{job.title}</h1>
                                 <div className="flex gap-3 mb-4">
-                                    <span className={`badge ${getStatusBadge(job.status)}`}>{job.status.replace('_', ' ')}</span>
-                                    <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority}</span>
+                                    <span className={`badge ${getStatusBadge(job.status)}`}>{(job.status || 'pending').replace('_', ' ')}</span>
+                                    <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority || 'medium'}</span>
                                 </div>
                                 {customer && (
                                     <div className="text-gray-400">Customer: <span className="text-white font-medium">{customer.name}</span></div>
@@ -2254,7 +2242,7 @@ const AuthContext = createContext();
             );
         };
 
-                const JobsView = ({ jobs, customers, organization, onUpdate }) => {
+        const JobsView = ({ jobs, customers, organization, onUpdate }) => {
             const [showCreateModal, setShowCreateModal] = useState(false);
             const [showDetailPage, setShowDetailPage] = useState(false);
             const [selectedJob, setSelectedJob] = useState(null);
@@ -2324,8 +2312,8 @@ const AuthContext = createContext();
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
-                                        <span className={`badge ${getStatusBadge(job.status)}`}>{job.status.replace('_', ' ')}</span>
-                                        <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority}</span>
+                                        <span className={`badge ${getStatusBadge(job.status)}`}>{(job.status || 'pending').replace('_', ' ')}</span>
+                                        <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority || 'medium'}</span>
                                         <button 
                                             onClick={(e) => {
                                                 e.stopPropagation();
