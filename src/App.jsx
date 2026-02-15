@@ -23,31 +23,23 @@ const AuthContext = createContext();
             const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                checkUser();
+                // onAuthStateChange fires immediately with the current session on mount
+                // (INITIAL_SESSION event) — so we don't need a separate checkUser call
                 const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
                     if (session?.user) {
                         setUser(session.user);
                         await loadOrganization(session.user.id);
+                        await checkSuperAdmin(session.user.email);
                     } else {
                         setUser(null);
                         setOrganization(null);
                     }
+                    // Always mark loading done after first event
+                    setLoading(false);
                 });
 
-                return () => {
-                    authListener?.subscription?.unsubscribe();
-                };
+                return () => authListener?.subscription?.unsubscribe();
             }, []);
-
-            const checkUser = async () => {
-                const { data: { session } } = await supabase.auth.getSession();
-                setUser(session?.user || null);
-                if (session?.user) {
-                    await loadOrganization(session.user.id);
-                    await checkSuperAdmin(session.user.email);
-                }
-                setLoading(false);
-            };
 
             const checkSuperAdmin = async (email) => {
                 // Check if user is super admin
@@ -950,7 +942,6 @@ const AuthContext = createContext();
             const [activeTab, setActiveTab] = useState('dashboard');
             const [sidebarOpen, setSidebarOpen] = useState(false);
             const [orgLoadFailed, setOrgLoadFailed] = useState(false);
-            const [orgDebugInfo, setOrgDebugInfo] = useState([]);
             const [customers, setCustomers] = useState([]);
             const [jobs, setJobs] = useState([]);
             const [teamMembers, setTeamMembers] = useState([]);
@@ -968,60 +959,12 @@ const AuthContext = createContext();
                 }
             }, [organization]);
 
-            // If org doesn't load within 3 seconds, run diagnostics and show error
+            // Simple fallback — if org still not loaded after 10 seconds, show help message
             useEffect(() => {
                 if (organization) return;
-                const timer = setTimeout(async () => {
-                    if (organization) return;
-                    const log = [];
-                    try {
-                        log.push(`user.id: ${user?.id}`);
-                        log.push(`user.email: ${user?.email}`);
-
-                        // Can we reach the organizations table?
-                        const { data, error } = await supabase
-                            .from('organizations')
-                            .select('id, name, owner_id')
-                            .eq('owner_id', user?.id);
-                        log.push(`select result: ${JSON.stringify({data, error})}`);
-
-                        // Try inserting a new org row
-                        const { data: metaRes } = await supabase.auth.getUser();
-                        const m = metaRes?.user?.user_metadata || {};
-                        const orgName = m.organization_name
-                            || (m.full_name ? m.full_name + "'s Business" : null)
-                            || user?.email?.split('@')[0]
-                            || 'My Business';
-                        log.push(`attempting insert with name: ${orgName}`);
-                        const { data: inserted, error: insertErr } = await supabase
-                            .from('organizations')
-                            .insert({
-                                owner_id: user?.id,
-                                name: orgName,
-                                business_description: m.business_description || '',
-                                industry: m.industry || '',
-                                team_size: m.team_size || '',
-                                plan: m.plan || 'per_user',
-                                pricing_model: 'per_user',
-                                price_per_user: 27,
-                                active_users: 1,
-                                subscription_status: 'active'
-                            })
-                            .select()
-                            .single();
-                        log.push(`insert result: ${JSON.stringify({data: inserted, error: insertErr})}`);
-
-                        if (inserted) {
-                            // Success — reload to pick up the new org
-                            window.location.reload();
-                            return;
-                        }
-                    } catch(e) {
-                        log.push(`exception: ${e.message}`);
-                    }
-                    setOrgDebugInfo(log);
+                const timer = setTimeout(() => {
                     setOrgLoadFailed(true);
-                }, 3000);
+                }, 10000);
                 return () => clearTimeout(timer);
             }, [organization]);
 
@@ -1083,14 +1026,6 @@ const AuthContext = createContext();
                                     <button onClick={() => window.location.reload()} className="btn-primary" style={{marginTop:'0.5rem'}}>
                                         🔄 I ran the SQL — Reload Now
                                     </button>
-                                    {orgDebugInfo.length > 0 && (
-                                        <div style={{marginTop:'1rem',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(160,163,196,0.2)',borderRadius:'8px',padding:'1rem',maxWidth:'600px',textAlign:'left'}}>
-                                            <div style={{color:'#FFD93D',fontWeight:'600',marginBottom:'0.5rem',fontSize:'0.8rem'}}>🔍 Debug Info — copy this and send it</div>
-                                            {orgDebugInfo.map((line, i) => (
-                                                <div key={i} style={{fontSize:'0.72rem',color:'#A0A3C4',fontFamily:'monospace',wordBreak:'break-all',marginBottom:'0.25rem'}}>{line}</div>
-                                            ))}
-                                        </div>
-                                    )}
                                 </>
                             ) : (
                                 <>
