@@ -2569,7 +2569,8 @@ const PipelineView = ({ organization, onUpdate }) => {
         { id: 'contacted', name: 'Contacted', order: 1 },
         { id: 'qualified', name: 'Qualified', order: 2 },
         { id: 'proposal', name: 'Proposal', order: 3 },
-        { id: 'negotiation', name: 'Negotiation', order: 4 }
+        { id: 'negotiation', name: 'Negotiation', order: 4 },
+        { id: 'won', name: '🏆 Won', order: 5 }
     ];
 
     useEffect(() => { loadData(); }, [organization]);
@@ -2578,7 +2579,7 @@ const PipelineView = ({ organization, onUpdate }) => {
         if (!organization?.id) return;
         try {
             const [dealsRes, customersRes] = await Promise.all([
-                supabase.from('deals').select('*').eq('organization_id', organization.id).eq('status', 'active'),
+                supabase.from('deals').select('*').eq('organization_id', organization.id).not('status', 'eq', 'lost'),
                 supabase.from('customers').select('*').eq('organization_id', organization.id),
             ]);
             setDeals(dealsRes.data || []);
