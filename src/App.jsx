@@ -21,37 +21,48 @@ const AuthContext = createContext();
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
-            // Prevent concurrent or redundant loadOrganization calls
-            const loadingOrgRef = React.useRef(false);
-            const orgLoadedRef  = React.useRef(false);
+            const orgLoadedForUser = React.useRef(null); // tracks which userId org is loaded for
 
             useEffect(() => {
+                // Step 1: immediately read the current session so we never hang on refresh
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (!session?.user) {
+                        // No session at all — stop loading, show login
+                        setLoading(false);
+                    }
+                    // If there IS a session, onAuthStateChange INITIAL_SESSION will handle it
+                });
+
+                // Step 2: listen for auth changes
                 const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    // TOKEN_REFRESHED and USER_UPDATED don't need a full reload —
-                    // only act on events that represent a real login/logout change
-                    if (event === 'SIGNED_OUT') {
+                    if (event === 'SIGNED_OUT' || !session?.user) {
                         setUser(null);
                         setOrganization(null);
-                        orgLoadedRef.current = false;
+                        orgLoadedForUser.current = null;
                         setLoading(false);
                         return;
                     }
 
-                    if (session?.user) {
-                        setUser(session.user);
-                        // Only load org if not already loading or already loaded
-                        if (!loadingOrgRef.current) {
-                            loadingOrgRef.current = true;
-                            await loadOrganization(session.user.id);
-                            await checkSuperAdmin(session.user.email);
-                            loadingOrgRef.current = false;
-                        }
+                    // TOKEN_REFRESHED / USER_UPDATED — user didn't change, skip reload
+                    if (session.user.id === orgLoadedForUser.current) {
+                        setLoading(false);
+                        return;
                     }
 
+                    // New user session — load their org
+                    setUser(session.user);
+                    await loadOrganization(session.user.id);
+                    await checkSuperAdmin(session.user.email);
                     setLoading(false);
                 });
 
-                return () => authListener?.subscription?.unsubscribe();
+                // Safety net: if loading is still true after 8s, release it
+                const timeout = setTimeout(() => setLoading(false), 8000);
+
+                return () => {
+                    authListener?.subscription?.unsubscribe();
+                    clearTimeout(timeout);
+                };
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -67,24 +78,24 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                // Already loaded — no need to re-fetch
-                if (orgLoadedRef.current) return;
-
-                // Try to load existing org row
-                const { data, error } = await supabase
-                    .from('organizations')
-                    .select('*')
-                    .eq('owner_id', userId)
-                    .single();
-
-                if (data) { setOrganization(data); orgLoadedRef.current = true; return; }
-
-                // Table missing entirely — schema not run yet, bail out
-                const errMsg = error?.message || '';
-                if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('42P01')) return;
-
-                // Table exists but no row — try auto-create from signup metadata
                 try {
+                    const { data, error } = await supabase
+                        .from('organizations')
+                        .select('*')
+                        .eq('owner_id', userId)
+                        .single();
+
+                    if (data) {
+                        setOrganization(data);
+                        orgLoadedForUser.current = userId;
+                        return;
+                    }
+
+                    // Table missing — schema not deployed yet
+                    const errMsg = error?.message || '';
+                    if (errMsg.includes('does not exist') || errMsg.includes('42P01')) return;
+
+                    // No row found — auto-create from signup metadata
                     const { data: metaRes } = await supabase.auth.getUser();
                     const meta = metaRes?.user?.user_metadata || {};
                     const orgName = meta.organization_name
@@ -107,8 +118,13 @@ const AuthContext = createContext();
                         })
                         .select()
                         .single();
-                    if (newOrg) { setOrganization(newOrg); orgLoadedRef.current = true; }
-                } catch (e) { /* silent — Dashboard diagnostic timeout will handle */ }
+                    if (newOrg) {
+                        setOrganization(newOrg);
+                        orgLoadedForUser.current = userId;
+                    }
+                } catch (e) {
+                    console.error('loadOrganization error:', e.message);
+                }
             };
 
             const signUp = async (email, password, organizationName, plan, fullName, businessDescription, industry, teamSize) => {
@@ -162,9 +178,11 @@ const AuthContext = createContext();
             };
 
             const signOut = async () => {
-                await supabase.auth.signOut();
+                // Clear state immediately so UI responds right away
                 setUser(null);
                 setOrganization(null);
+                orgLoadedForUser.current = null;
+                await supabase.auth.signOut();
             };
 
             return (
@@ -1003,7 +1021,7 @@ const AuthContext = createContext();
                     setTasks(tasksData);
                     setStats({
                         totalCustomers: customersData.length,
-                        activeJobs:     jobsData.filter(j => j.status !== 'completed').length,
+                        activeJobs:     jobsData.filter(j => !['completed', 'cancelled', 'lost'].includes(j.status)).length,
                         completedJobs:  jobsData.filter(j => j.status === 'completed').length,
                         revenue:        jobsData.reduce((sum, j) => sum + (j.value || 0), 0),
                     });
@@ -1261,7 +1279,7 @@ const AuthContext = createContext();
                 const totalRevenue = transactions.filter(t => t.status === 'paid' && t.transaction_type !== 'expense').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
                 const outstanding = transactions.filter(t => t.status === 'pending' && t.transaction_type === 'invoice').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
                 const completedJobs = jobs.filter(j => j.status === 'completed').length;
-                const activeJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'cancelled').length;
+                const activeJobs = jobs.filter(j => !['completed', 'cancelled', 'lost'].includes(j.status)).length;
                 return { totalRevenue, outstanding, completedJobs, activeJobs };
             };
 
@@ -1457,7 +1475,7 @@ const AuthContext = createContext();
 
         // ── Shared job badge helpers (used by JobDetailPage and JobsView) ──
         const getStatusBadge = (status) => {
-            const badges = { pending:'badge-warning', in_progress:'badge-info', completed:'badge-success', invoiced:'badge-info', paid:'badge-success', cancelled:'badge-error' };
+            const badges = { new:'badge-info', pending:'badge-warning', scheduled:'badge-info', in_progress:'badge-info', on_hold:'badge-warning', completed:'badge-success', invoiced:'badge-info', paid:'badge-success', cancelled:'badge-error', lost:'badge-error' };
             return badges[status] || 'badge-warning';
         };
         const getPriorityBadge = (priority) => {
@@ -1549,6 +1567,7 @@ const AuthContext = createContext();
                                     <option value="on_hold">On Hold</option>
                                     <option value="completed">Completed</option>
                                     <option value="cancelled">Cancelled</option>
+                                    <option value="lost">Lost</option>
                                 </select>
                             </div>
                             <div>
@@ -2099,6 +2118,9 @@ const AuthContext = createContext();
                                 <button onClick={() => handleStatusChange('cancelled')} className={`btn-${job.status === 'cancelled' ? 'secondary' : 'secondary'} text-sm`}>
                                     Cancel Job
                                 </button>
+                                <button onClick={() => handleStatusChange('lost')} className={`btn-${job.status === 'lost' ? 'secondary' : 'secondary'} text-sm`}>
+                                    Mark Lost
+                                </button>
                             </div>
                         </div>
 
@@ -2308,6 +2330,7 @@ const AuthContext = createContext();
                         <button onClick={() => setFilter('pending')} className={filter === 'pending' ? 'btn-primary' : 'btn-secondary'}>Pending</button>
                         <button onClick={() => setFilter('in_progress')} className={filter === 'in_progress' ? 'btn-primary' : 'btn-secondary'}>In Progress</button>
                         <button onClick={() => setFilter('completed')} className={filter === 'completed' ? 'btn-primary' : 'btn-secondary'}>Completed</button>
+                        <button onClick={() => setFilter('lost')} className={filter === 'lost' ? 'btn-primary' : 'btn-secondary'}>Lost</button>
                     </div>
 
                     <div className="space-y-4">
