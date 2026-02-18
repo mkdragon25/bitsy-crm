@@ -324,9 +324,14 @@ const AuthContext = createContext();
                     {/* Navigation */}
                     <nav className="relative z-10 px-6 py-6">
                         <div className="max-w-7xl mx-auto flex justify-between items-center">
-                            <div className="heading-font text-3xl font-bold text-white">
-                                Bitsy<span className="text-[#FFD93D]">CRM</span>
-                            </div>
+                            <img 
+                                src="/logo.png" 
+                                alt="BitsyCRM" 
+                                style={{
+                                    height: '48px',
+                                    width: 'auto'
+                                }}
+                            />
                             <div className="flex gap-4">
                                 <button 
                                     onClick={() => { setAuthMode('signin'); setShowAuthModal(true); }}
@@ -496,10 +501,18 @@ const AuthContext = createContext();
                     {/* Footer */}
                     <footer className="relative z-10 px-6 py-12 border-t border-gray-800">
                         <div className="max-w-6xl mx-auto text-center text-gray-500">
-                            <p className="heading-font text-2xl font-bold mb-4">
-                                Bitsy<span className="text-[#FFD93D]">CRM</span>
-                            </p>
-                            <p>&copy; 2026 BitsyCRM. All rights reserved.</p>
+                            <img 
+                                src="/logo.png" 
+                                alt="BitsyCRM" 
+                                style={{
+                                    height: '36px',
+                                    width: 'auto',
+                                    marginBottom: '1rem',
+                                    marginLeft: 'auto',
+                                    marginRight: 'auto'
+                                }}
+                            />
+                            <p>&copy; 2026 Bitsy CRM. All rights reserved.</p>
                         </div>
                     </footer>
 
@@ -1213,10 +1226,16 @@ const AuthContext = createContext();
                     {/* Sidebar */}
                     <div className={`dashboard-sidebar flex flex-col fixed md:relative z-30 h-full transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`} style={{width: '16rem'}}>
                         <div className="p-6 border-b border-gray-800">
-                            <div className="heading-font text-2xl font-bold">
-                                Bitsy<span className="text-[#FFD93D]">CRM</span>
-                            </div>
-                            <div className="text-sm text-gray-400 mt-2">{organization?.name}</div>
+                            <img 
+                                src="/logo.png" 
+                                alt="BitsyCRM" 
+                                style={{
+                                    height: '40px',
+                                    width: 'auto',
+                                    marginBottom: '0.5rem'
+                                }}
+                            />
+                            <div className="text-sm text-gray-400">{organization?.name}</div>
                         </div>
 
                         <nav className="flex-1 py-4">
@@ -1271,7 +1290,7 @@ const AuthContext = createContext();
                         {/* Mobile header */}
                         <div className="md:hidden flex items-center gap-4 p-4 border-b border-gray-800 sticky top-0 bg-[#0D0E2E] z-10">
                             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">&#9776;</button>
-                            <div className="heading-font text-xl font-bold">Bitsy<span className="text-[#FFD93D]">CRM</span></div>
+                            <img src="/logo.png" alt="BitsyCRM" style={{height: "32px", width: "auto"}} />
                         </div>
                         <div className="p-4 md:p-8">
                             {renderContent()}
