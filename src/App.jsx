@@ -14,66 +14,175 @@ const PRICE_PER_USER = 27.00;
 // Initialize clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Badge helpers moved to module scope to prevent JobsView crashes
-        const getStatusBadge = (status) => {
-            const badges = {
-                new: 'badge-info',
-                pending: 'badge-warning', 
-                scheduled: 'badge-info',
-                in_progress: 'badge-info',
-                on_hold: 'badge-warning',
-                completed: 'badge-success',
-                invoiced: 'badge-info', 
-                paid: 'badge-success',
-                cancelled: 'badge-error',
-                lost: 'badge-error'
-            };
-            return badges[status] || 'badge-warning';
-        };
-
-        const getPriorityBadge = (priority) => {
-            const badges = {
-                low: 'badge-success',
-                medium: 'badge-info', 
-                high: 'badge-warning',
-                urgent: 'badge-error'
-            };
-            return badges[priority] || 'badge-info';
-        };
-
 const AuthContext = createContext();
 
-        const AuthProvider = ({ children }) => {
+        // Error Boundary to catch React crashes
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error('React Error Boundary caught:', error, errorInfo);
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem'}}>
+                            <div style={{textAlign:'center',maxWidth:'500px'}}>
+                                <div style={{fontSize:'3rem',marginBottom:'1rem'}}>💥</div>
+                                <h1 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>React Error</h1>
+                                <p style={{color:'#A0A3C4',marginBottom:'1rem',lineHeight:'1.6'}}>
+                                    The app crashed due to a React error. This is usually caused by corrupted browser storage.
+                                </p>
+                                <details style={{marginBottom:'2rem',textAlign:'left',background:'rgba(255,69,58,0.1)',padding:'1rem',borderRadius:'8px'}}>
+                                    <summary style={{cursor:'pointer',marginBottom:'0.5rem',fontWeight:'600'}}>Error Details</summary>
+                                    <code style={{fontSize:'0.8rem',color:'#ff453a',wordBreak:'break-all'}}>
+                                        {this.state.error?.toString() || 'Unknown error'}
+                                    </code>
+                                </details>
+                                <button onClick={() => {
+                                    try { 
+                                        Object.keys(localStorage).filter(k => k.includes('supabase')).forEach(k => localStorage.removeItem(k)); 
+                                        sessionStorage.clear(); 
+                                    } catch(e) {}
+                                    window.location.reload();
+                                }} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',fontWeight:'600',cursor:'pointer'}}>
+                                    🔄 Clear Storage & Reload
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
+                const AuthProvider = ({ children }) => {
             const [user, setUser] = useState(null);
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
+            const [crashed, setCrashed] = useState(false);
+            const [debugMode, setDebugMode] = useState(false);
+            const [debugLog, setDebugLog] = useState([]);
+            const orgLoadedForUser = React.useRef(null);
+            
+            const log = (msg) => {
+                const timestamp = new Date().toLocaleTimeString();
+                setDebugLog(prev => [...prev, `${timestamp}: ${msg}`].slice(-10)); // keep last 10
+                console.log('[AuthProvider]', msg);
+            };
+
+            // Clear any corrupted Supabase storage on mount
+            useEffect(() => {
+                try {
+                    // Clear stale auth storage that might be corrupted
+                    const authKey = `sb-${supabase.supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
+                    const storedAuth = localStorage.getItem(authKey);
+                    if (storedAuth) {
+                        try { JSON.parse(storedAuth); } 
+                        catch(e) { 
+                            console.warn('Clearing corrupted auth storage');
+                            localStorage.removeItem(authKey); 
+                        }
+                    }
+                } catch(e) { /* ignore */ }
+            }, []);
+
+            const resetApp = () => {
+                // Nuclear reset without clearing all browser data
+                try {
+                    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                    authKeys.forEach(k => localStorage.removeItem(k));
+                    sessionStorage.clear();
+                } catch(e) { /* ignore */ }
+                setCrashed(false);
+                setLoading(true);
+                setUser(null);
+                setOrganization(null);
+                orgLoadedForUser.current = null;
+                window.location.reload();
+            };
+
+            // Crash recovery UI
+            if (crashed) {
+                return (
+                    <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem'}}>
+                        <div style={{textAlign:'center',maxWidth:'400px'}}>
+                            <div style={{fontSize:'3rem',marginBottom:'1rem'}}>⚠️</div>
+                            <h1 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>App Crashed</h1>
+                            <p style={{color:'#A0A3C4',marginBottom:'2rem',lineHeight:'1.6'}}>
+                                Something went wrong. This usually happens when browser storage gets corrupted.
+                            </p>
+                            <button onClick={resetApp} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',fontWeight:'600',cursor:'pointer'}}>
+                                🔄 Reset App
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
 
             useEffect(() => {
-                // Check session immediately to prevent refresh hang
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (!session?.user) setLoading(false);
-                });
+                // Wrap everything in try/catch to prevent crashes from killing the app
+                const initAuth = async () => {
+                    try {
+                        // Step 1: get current session
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.user) {
+                            setLoading(false); log('Loading completed');
+                            return;
+                        }
 
-                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (session?.user) {
-                        setUser(session.user);
-                        await loadOrganization(session.user.id);
-                        await checkSuperAdmin(session.user.email);
-                    } else {
-                        setUser(null);
-                        setOrganization(null);
+                        // Step 2: listen for auth changes
+                        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                            try {
+                                if (event === 'SIGNED_OUT' || !session?.user) {
+                                    setUser(null);
+                                    setOrganization(null);
+                                    orgLoadedForUser.current = null;
+                                    setLoading(false); log('Loading completed');
+                                    return;
+                                }
+
+                                if (session.user.id === orgLoadedForUser.current) {
+                                    setLoading(false); log('Loading completed');
+                                    return;
+                                }
+
+                                setUser(session.user); log(`User set: ${session.user.email}`);
+                                await loadOrganization(session.user.id);
+                                await checkSuperAdmin(session.user.email);
+                                setLoading(false); log('Loading completed');
+                            } catch (e) {
+                                console.error('Auth state change error:', e);
+                                setCrashed(true);
+                            }
+                        });
+
+                        // Safety timeout: force loading false after 5s
+                        const timeout = setTimeout(() => {
+                            console.warn('Auth timeout - forcing loading = false');
+                            setLoading(false); log('Loading completed');
+                        }, 5000);
+
+                        return () => {
+                            authListener?.subscription?.unsubscribe();
+                            clearTimeout(timeout);
+                        };
+                    } catch (e) {
+                        console.error('Auth initialization error:', e);
+                        setCrashed(true);
                     }
-                    setLoading(false);
-                });
-
-                // Safety timeout
-                const timeout = setTimeout(() => setLoading(false), 5000);
-                
-                return () => {
-                    authListener?.subscription?.unsubscribe();
-                    clearTimeout(timeout);
                 };
+                
+                initAuth();
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -89,21 +198,24 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                // Try to load existing org row
-                const { data, error } = await supabase
-                    .from('organizations')
-                    .select('*')
-                    .eq('owner_id', userId)
-                    .single();
-
-                if (data) { setOrganization(data); return; }
-
-                // Table missing entirely — schema not run yet, bail out
-                const errMsg = error?.message || '';
-                if (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('42P01')) return;
-
-                // Table exists but no row — try auto-create from signup metadata
                 try {
+                    const { data, error } = await supabase
+                        .from('organizations')
+                        .select('*')
+                        .eq('owner_id', userId)
+                        .single();
+
+                    if (data) {
+                        setOrganization(data); log(`Organization loaded: ${data.name}`);
+                        orgLoadedForUser.current = userId;
+                        return;
+                    }
+
+                    // Table missing — schema not deployed yet
+                    const errMsg = error?.message || '';
+                    if (errMsg.includes('does not exist') || errMsg.includes('42P01')) return;
+
+                    // No row found — auto-create from signup metadata
                     const { data: metaRes } = await supabase.auth.getUser();
                     const meta = metaRes?.user?.user_metadata || {};
                     const orgName = meta.organization_name
@@ -126,8 +238,13 @@ const AuthContext = createContext();
                         })
                         .select()
                         .single();
-                    if (newOrg) setOrganization(newOrg);
-                } catch (e) { /* silent — Dashboard diagnostic timeout will handle */ }
+                    if (newOrg) {
+                        setOrganization(newOrg);
+                        orgLoadedForUser.current = userId;
+                    }
+                } catch (e) {
+                    console.error('loadOrganization error:', e.message);
+                }
             };
 
             const signUp = async (email, password, organizationName, plan, fullName, businessDescription, industry, teamSize) => {
@@ -181,9 +298,11 @@ const AuthContext = createContext();
             };
 
             const signOut = async () => {
-                await supabase.auth.signOut();
+                // Clear state immediately so UI responds right away
                 setUser(null);
                 setOrganization(null);
+                orgLoadedForUser.current = null;
+                await supabase.auth.signOut();
             };
 
             return (
@@ -420,7 +539,7 @@ const AuthContext = createContext();
                 try {
                     if (mode === 'signup') {
                         // Require payment before creating account
-                        setLoading(false);
+                        setLoading(false); log('Loading completed');
                         onClose();
                         
                         // Store signup data in sessionStorage
@@ -444,7 +563,7 @@ const AuthContext = createContext();
                     }
                 } catch (err) {
                     setError(err.message);
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -654,7 +773,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     console.error('Error loading admin data:', err);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1004,41 +1123,31 @@ const AuthContext = createContext();
             }, [organization]);
 
             const loadData = async () => {
-                // Load customers
-                const { data: customersData } = await supabase
-                    .from('customers')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setCustomers(customersData || []);
-
-                // Load jobs
-                const { data: jobsData } = await supabase
-                    .from('jobs')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setJobs(jobsData || []);
-
-                // Load team members
-                const { data: teamData } = await supabase
-                    .from('team_members')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setTeamMembers(teamData || []);
-
-                // Load tasks for calendar
-                const { data: tasksData } = await supabase
-                    .from('tasks')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setTasks(tasksData || []);
-
-                // Calculate stats
-                setStats({
-                    totalCustomers: customersData?.length || 0,
-                    activeJobs: jobsData?.filter(j => j.status !== 'completed').length || 0,
-                    completedJobs: jobsData?.filter(j => j.status === 'completed').length || 0,
-                    revenue: jobsData?.reduce((sum, j) => sum + (j.value || 0), 0) || 0
-                });
+                if (!organization?.id) return;
+                try {
+                    const [customersRes, jobsRes, teamRes, tasksRes] = await Promise.all([
+                        supabase.from('customers').select('*').eq('organization_id', organization.id),
+                        supabase.from('jobs').select('*').eq('organization_id', organization.id),
+                        supabase.from('team_members').select('*').eq('organization_id', organization.id),
+                        supabase.from('tasks').select('*').eq('organization_id', organization.id),
+                    ]);
+                    const customersData = customersRes.data || [];
+                    const jobsData      = jobsRes.data      || [];
+                    const teamData      = teamRes.data      || [];
+                    const tasksData     = tasksRes.data     || [];
+                    setCustomers(customersData);
+                    setJobs(jobsData);
+                    setTeamMembers(teamData);
+                    setTasks(tasksData);
+                    setStats({
+                        totalCustomers: customersData.length,
+                        activeJobs:     jobsData.filter(j => !['completed', 'cancelled', 'lost'].includes(j.status)).length,
+                        completedJobs:  jobsData.filter(j => j.status === 'completed').length,
+                        revenue:        jobsData.reduce((sum, j) => sum + (j.value || 0), 0),
+                    });
+                } catch(e) {
+                    console.error('loadData error:', e.message);
+                }
             };
 
             const renderContent = () => {
@@ -1219,7 +1328,7 @@ const AuthContext = createContext();
         // CUSTOMER RECORD PAGE COMPONENT
         // ============================================
         const CustomerRecordPage = ({ customerId, onClose }) => {
-            const { user } = useAuth();
+            const { user, organization } = useAuth();
             const [customer, setCustomer] = useState(null);
             const [notes, setNotes] = useState([]);
             const [transactions, setTransactions] = useState([]);
@@ -1229,7 +1338,6 @@ const AuthContext = createContext();
             const [showEditModal, setShowEditModal] = useState(false);
             const [newNote, setNewNote] = useState('');
             const [savingNote, setSavingNote] = useState(false);
-            const [organization, setOrganization] = useState(null);
 
             useEffect(() => {
                 loadCustomerData();
@@ -1238,24 +1346,21 @@ const AuthContext = createContext();
             const loadCustomerData = async () => {
                 setLoading(true);
                 try {
-                    const { data: orgData } = await supabase.from('organizations').select('*').eq('owner_id', user.id).single();
-                    setOrganization(orgData);
-
-                    const { data: customerData } = await supabase.from('customers').select('*').eq('id', customerId).single();
-                    setCustomer(customerData);
-
-                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-                    setNotes(notesData || []);
-
-                    const { data: transactionsData } = await supabase.from('transactions').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-                    setTransactions(transactionsData || []);
-
-                    const { data: jobsData } = await supabase.from('jobs').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-                    setJobs(jobsData || []);
+                    // Fetch everything in parallel — no sequential stalling
+                    const [customerRes, notesRes, txRes, jobsRes] = await Promise.all([
+                        supabase.from('customers').select('*').eq('id', customerId).single(),
+                        supabase.from('customer_notes').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                        supabase.from('transactions').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                        supabase.from('jobs').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                    ]);
+                    setCustomer(customerRes.data);
+                    setNotes(notesRes.data || []);
+                    setTransactions(txRes.data || []);
+                    setJobs(jobsRes.data || []);
                 } catch (err) {
                     console.error('Error loading customer:', err);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1294,7 +1399,7 @@ const AuthContext = createContext();
                 const totalRevenue = transactions.filter(t => t.status === 'paid' && t.transaction_type !== 'expense').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
                 const outstanding = transactions.filter(t => t.status === 'pending' && t.transaction_type === 'invoice').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
                 const completedJobs = jobs.filter(j => j.status === 'completed').length;
-                const activeJobs = jobs.filter(j => j.status !== 'completed' && j.status !== 'cancelled').length;
+                const activeJobs = jobs.filter(j => !['completed', 'cancelled', 'lost'].includes(j.status)).length;
                 return { totalRevenue, outstanding, completedJobs, activeJobs };
             };
 
@@ -1453,7 +1558,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     alert('Error: ' + err.message);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1488,6 +1593,16 @@ const AuthContext = createContext();
             );
         };
 
+        // ── Shared job badge helpers (used by JobDetailPage and JobsView) ──
+        const getStatusBadge = (status) => {
+            const badges = { new:'badge-info', pending:'badge-warning', scheduled:'badge-info', in_progress:'badge-info', on_hold:'badge-warning', completed:'badge-success', invoiced:'badge-info', paid:'badge-success', cancelled:'badge-error', lost:'badge-error' };
+            return badges[status] || 'badge-warning';
+        };
+        const getPriorityBadge = (priority) => {
+            const badges = { low:'badge-success', medium:'badge-info', high:'badge-warning', urgent:'badge-error' };
+            return badges[priority] || 'badge-info';
+        };
+
         // Create Job Modal
         const CreateJobModal = ({ customers, organizationId, onClose, onSuccess }) => {
             const { user, organization: authOrg } = useAuth();
@@ -1495,7 +1610,7 @@ const AuthContext = createContext();
             const [title, setTitle] = useState('');
             const [description, setDescription] = useState('');
             const [customerId, setCustomerId] = useState('');
-            const [status, setStatus] = useState('new');
+            const [status, setStatus] = useState('pending');
             const [priority, setPriority] = useState('medium');
             const [value, setValue] = useState('');
             const [scheduledDate, setScheduledDate] = useState('');
@@ -1509,7 +1624,7 @@ const AuthContext = createContext();
 
                 // Use prop orgId, or fetch it directly if not loaded yet
                 const orgId = resolvedOrgId;
-                if (!orgId) { setError('Still loading your account — please wait 2 seconds and try again.'); setLoading(false); return; }
+                if (!orgId) { setError('Still loading your account — please wait 2 seconds and try again.'); setLoading(false); log('Loading completed'); return; }
 
                 try {
                     const { error: dbError } = await supabase.from('jobs').insert({
@@ -1522,11 +1637,11 @@ const AuthContext = createContext();
                         value: value ? parseFloat(value) : 0,
                         scheduled_date: scheduledDate || null,
                     });
-                    if (dbError) { setError(dbError.message); setLoading(false); return; }
+                    if (dbError) { setError(dbError.message); setLoading(false); log('Loading completed'); return; }
                     onSuccess();
                 } catch (err) {
                     setError(err.message || 'Something went wrong');
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1572,6 +1687,7 @@ const AuthContext = createContext();
                                     <option value="on_hold">On Hold</option>
                                     <option value="completed">Completed</option>
                                     <option value="cancelled">Cancelled</option>
+                                    <option value="lost">Lost</option>
                                 </select>
                             </div>
                             <div>
@@ -1888,13 +2004,13 @@ const AuthContext = createContext();
 
                     if (dbError) {
                         setError(dbError.message);
-                        setLoading(false);
+                        setLoading(false); log('Loading completed');
                         return;
                     }
                     onSuccess();
                 } catch (err) {
                     setError(err.message || 'Something went wrong');
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1983,7 +2099,7 @@ const AuthContext = createContext();
         // JOB DETAIL PAGE COMPONENT
         // ============================================
         const JobDetailPage = ({ jobId, onClose }) => {
-            const { user } = useAuth();
+            const { user, organization } = useAuth();
             const [job, setJob] = useState(null);
             const [customer, setCustomer] = useState(null);
             const [notes, setNotes] = useState([]);
@@ -1992,7 +2108,6 @@ const AuthContext = createContext();
             const [showEditModal, setShowEditModal] = useState(false);
             const [newNote, setNewNote] = useState('');
             const [savingNote, setSavingNote] = useState(false);
-            const [organization, setOrganization] = useState(null);
 
             useEffect(() => {
                 loadJobData();
@@ -2001,28 +2116,28 @@ const AuthContext = createContext();
             const loadJobData = async () => {
                 setLoading(true);
                 try {
-                    const { data: orgData } = await supabase.from('organizations').select('*').eq('owner_id', user.id).single();
-                    setOrganization(orgData);
-
-                    const { data: jobData } = await supabase.from('jobs').select('*').eq('id', jobId).single();
+                    // Fetch job and notes in parallel
+                    const [jobRes, notesRes] = await Promise.all([
+                        supabase.from('jobs').select('*').eq('id', jobId).single(),
+                        supabase.from('customer_notes').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
+                    ]);
+                    const jobData = jobRes.data;
                     setJob(jobData);
+                    setNotes(notesRes.data || []);
 
-                    if (jobData.customer_id) {
-                        const { data: customerData } = await supabase.from('customers').select('*').eq('id', jobData.customer_id).single();
-                        setCustomer(customerData);
+                    // If job has a customer, fetch customer + transactions in parallel
+                    if (jobData?.customer_id) {
+                        const [customerRes, txRes] = await Promise.all([
+                            supabase.from('customers').select('*').eq('id', jobData.customer_id).single(),
+                            supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false }),
+                        ]);
+                        setCustomer(customerRes.data);
+                        setTransactions(txRes.data || []);
                     }
-
-                    const { data: notesData } = await supabase.from('customer_notes').select('*').eq('job_id', jobId).order('created_at', { ascending: false });
-                    setNotes(notesData || []);
-
-                    const transactionsData = jobData.customer_id
-                        ? (await supabase.from('transactions').select('*').eq('customer_id', jobData.customer_id).order('created_at', { ascending: false })).data
-                        : [];
-                    setTransactions(transactionsData || []);
                 } catch (err) {
                     console.error('Error loading job:', err);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2068,10 +2183,6 @@ const AuthContext = createContext();
                 }
             };
 
-
-                return badges[priority] || 'badge-info';
-            };
-
             if (loading) {
                 return React.createElement('div', { className: 'min-h-screen flex items-center justify-center' },
                     React.createElement('div', { className: 'text-2xl' }, 'Loading...')
@@ -2093,7 +2204,7 @@ const AuthContext = createContext();
                         <div className="flex justify-between items-start mb-8">
                             <div>
                                 <button onClick={onClose} className="text-gray-400 hover:text-white mb-4 flex items-center gap-2">← Back to Jobs</button>
-                                <h1 className="heading-font text-4xl font-bold mb-2">{(job.title || 'Untitled Job')}</h1>
+                                <h1 className="heading-font text-4xl font-bold mb-2">{job.title}</h1>
                                 <div className="flex gap-3 mb-4">
                                     <span className={`badge ${getStatusBadge(job.status)}`}>{(job.status || 'pending').replace('_', ' ')}</span>
                                     <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority || 'medium'}</span>
@@ -2127,6 +2238,9 @@ const AuthContext = createContext();
                                 <button onClick={() => handleStatusChange('cancelled')} className={`btn-${job.status === 'cancelled' ? 'secondary' : 'secondary'} text-sm`}>
                                     Cancel Job
                                 </button>
+                                <button onClick={() => handleStatusChange('lost')} className={`btn-${job.status === 'lost' ? 'secondary' : 'secondary'} text-sm`}>
+                                    Mark Lost
+                                </button>
                             </div>
                         </div>
 
@@ -2136,7 +2250,7 @@ const AuthContext = createContext();
                                 <h2 className="text-xl font-bold mb-4">Job Details</h2>
                                 <div className="space-y-3">
                                     <div><div className="text-sm text-gray-400">Description</div><div>{job.description || '-'}</div></div>
-                                    <div><div className="text-sm text-gray-400">Value</div><div className="text-green-400 font-bold">${parseFloat((job.value || 0)).toFixed(2)}</div></div>
+                                    <div><div className="text-sm text-gray-400">Value</div><div className="text-green-400 font-bold">${parseFloat(job.value || 0).toFixed(2)}</div></div>
                                     <div><div className="text-sm text-gray-400">Scheduled Date</div><div>{job.scheduled_date ? new Date(job.scheduled_date).toLocaleDateString() : '-'}</div></div>
                                     <div><div className="text-sm text-gray-400">Created</div><div>{new Date(job.created_at).toLocaleDateString()}</div></div>
                                 </div>
@@ -2229,7 +2343,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     alert('Error: ' + err.message);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2336,6 +2450,7 @@ const AuthContext = createContext();
                         <button onClick={() => setFilter('pending')} className={filter === 'pending' ? 'btn-primary' : 'btn-secondary'}>Pending</button>
                         <button onClick={() => setFilter('in_progress')} className={filter === 'in_progress' ? 'btn-primary' : 'btn-secondary'}>In Progress</button>
                         <button onClick={() => setFilter('completed')} className={filter === 'completed' ? 'btn-primary' : 'btn-secondary'}>Completed</button>
+                        <button onClick={() => setFilter('lost')} className={filter === 'lost' ? 'btn-primary' : 'btn-secondary'}>Lost</button>
                     </div>
 
                     <div className="space-y-4">
@@ -2343,7 +2458,7 @@ const AuthContext = createContext();
                             <div key={job.id} className="glass-card p-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleJobClick(job)}>
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold mb-2">{(job.title || 'Untitled Job')}</h3>
+                                        <h3 className="text-xl font-bold mb-2">{job.title}</h3>
                                         <p className="text-gray-400 mb-3">{job.description}</p>
                                         <div className="flex gap-4 text-sm">
                                             <span className="text-gray-400">Customer: <span className="text-white">{getCustomerName(job.customer_id)}</span></span>
@@ -2501,7 +2616,7 @@ const AuthContext = createContext();
                     onSuccess(); // Close modal
                 } catch (err) {
                     alert('Error: ' + err.message);
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2597,16 +2712,22 @@ const PipelineView = ({ organization, onUpdate }) => {
         { id: 'contacted', name: 'Contacted', order: 1 },
         { id: 'qualified', name: 'Qualified', order: 2 },
         { id: 'proposal', name: 'Proposal', order: 3 },
-        { id: 'negotiation', name: 'Negotiation', order: 4 }
+        { id: 'negotiation', name: 'Negotiation', order: 4 },
+        { id: 'won', name: '🏆 Won', order: 5 }
     ];
 
     useEffect(() => { loadData(); }, [organization]);
 
     const loadData = async () => {
-        const { data: dealsData } = await supabase.from('deals').select('*').eq('organization_id', organization.id).eq('status', 'active');
-        setDeals(dealsData || []);
-        const { data: customersData } = await supabase.from('customers').select('*').eq('organization_id', organization.id);
-        setCustomers(customersData || []);
+        if (!organization?.id) return;
+        try {
+            const [dealsRes, customersRes] = await Promise.all([
+                supabase.from('deals').select('*').eq('organization_id', organization.id).not('status', 'eq', 'lost'),
+                supabase.from('customers').select('*').eq('organization_id', organization.id),
+            ]);
+            setDeals(dealsRes.data || []);
+            setCustomers(customersRes.data || []);
+        } catch(e) { console.error('Pipeline loadData:', e.message); }
     };
 
     const handleDrop = async (stage) => {
@@ -2694,45 +2815,129 @@ const PipelineView = ({ organization, onUpdate }) => {
 
 const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
     const { user } = useAuth();
-    const [formData, setFormData] = useState({ title: '', customer_id: '', value: '', probability: 50, stage: 'lead', next_follow_up: '', description: '' });
+    const [title, setTitle] = useState('');
+    const [customerId, setCustomerId] = useState('');
+    const [value, setValue] = useState('');
+    const [probability, setProbability] = useState(50);
+    const [stage, setStage] = useState('lead');
+    const [nextFollowUp, setNextFollowUp] = useState('');
+    const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async () => {
+        if (!title.trim()) { setError('Title is required'); return; }
         setLoading(true);
-        try {
-            const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4 };
-            await supabase.from('deals').insert({
-                organization_id: organization.id, created_by: user.id, ...formData,
-                value: parseFloat(formData.value) || 0, stage_order: stageOrders[formData.stage] || 0, status: 'active'
-            });
-            alert('Deal created!');
-            onSuccess();
-        } catch (err) {
-            alert('Error: ' + err.message);
-        } finally {
-            setLoading(false);
+        setError('');
+        const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4 };
+
+        // Get org id — use prop or fetch directly
+        let orgId = organization?.id;
+        if (!orgId) {
+            const { data: orgData } = await supabase.from('organizations').select('id').eq('owner_id', user.id).single();
+            orgId = orgData?.id;
         }
+        console.log('[CreateDeal] orgId:', orgId, '  userId:', user?.id);
+        if (!orgId) { setError('Could not find your organization. Please refresh.'); setLoading(false); log('Loading completed'); return; }
+
+        const payload = {
+            organization_id: orgId,
+            created_by: user.id,
+            title: title.trim(),
+            description: description.trim(),
+            customer_id: customerId || null,
+            value: parseFloat(value) || 0,
+            probability: parseInt(probability) || 50,
+            stage,
+            stage_order: stageOrders[stage] || 0,
+            next_follow_up: nextFollowUp || null,
+            status: 'active'
+        };
+        console.log('[CreateDeal] inserting:', payload);
+
+        const { data: inserted, error: dbError } = await supabase.from('deals').insert(payload).select().single();
+        console.log('[CreateDeal] result — data:', inserted, '  error:', dbError);
+
+        setLoading(false); log('Loading completed');
+        if (dbError) { 
+            console.error('[CreateDeal] FAILED:', dbError);
+            setError(dbError.message);
+            alert('Deal save failed: ' + dbError.message);
+            return; 
+        }
+        onSuccess();
     };
 
+    const fieldStyle = {width:'100%',padding:'10px 14px',background:'rgba(17,18,54,0.90)',border:'1px solid rgba(160,163,196,0.20)',borderRadius:'8px',color:'#E8E8F0',fontSize:'14px'};
+    const labelStyle = {display:'block',fontSize:'0.8rem',fontWeight:'500',marginBottom:'0.4rem',color:'#A0A3C4'};
+
     return (
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
-                <h2 className="heading-font text-2xl font-bold mb-6">Create New Deal</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input type="text" className="input-field" placeholder="Deal Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
-                    <div className="grid grid-cols-2 gap-4">
-                        <select className="input-field" value={formData.customer_id} onChange={(e) => setFormData({...formData, customer_id: e.target.value})}>
+        <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
+            <div onClick={e => e.stopPropagation()} style={{background:'#1A1B4B',border:'1px solid rgba(255,217,61,0.25)',borderRadius:'16px',padding:'2rem',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',color:'#E8E8F0'}}>
+                <h2 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1.5rem'}}>Create New Deal</h2>
+
+                {error && (
+                    <div style={{background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171',padding:'0.75rem',borderRadius:'8px',marginBottom:'1rem',fontSize:'0.875rem'}}>
+                        {error}
+                    </div>
+                )}
+
+                <div style={{marginBottom:'1rem'}}>
+                    <label style={labelStyle}>Deal Title *</label>
+                    <input type="text" placeholder="e.g. Website Redesign for Acme Co" value={title} onChange={e => setTitle(e.target.value)} style={fieldStyle} />
+                </div>
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                    <div>
+                        <label style={labelStyle}>Customer</label>
+                        <select value={customerId} onChange={e => setCustomerId(e.target.value)} style={fieldStyle}>
                             <option value="">Select customer...</option>
-                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input type="number" step="0.01" className="input-field" placeholder="Value ($)" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} />
                     </div>
-                    <div className="flex gap-4">
-                        <button type="submit" className="btn-primary flex-1" disabled={loading}>{loading ? 'Creating...' : 'Create Deal'}</button>
-                        <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+                    <div>
+                        <label style={labelStyle}>Value ($)</label>
+                        <input type="number" step="0.01" placeholder="0.00" value={value} onChange={e => setValue(e.target.value)} style={fieldStyle} />
                     </div>
-                </form>
+                </div>
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                    <div>
+                        <label style={labelStyle}>Stage</label>
+                        <select value={stage} onChange={e => setStage(e.target.value)} style={fieldStyle}>
+                            <option value="lead">Lead</option>
+                            <option value="contacted">Contacted</option>
+                            <option value="qualified">Qualified</option>
+                            <option value="proposal">Proposal</option>
+                            <option value="negotiation">Negotiation</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style={labelStyle}>Probability (%)</label>
+                        <input type="number" min="0" max="100" value={probability} onChange={e => setProbability(e.target.value)} style={fieldStyle} />
+                    </div>
+                </div>
+
+                <div style={{marginBottom:'1rem'}}>
+                    <label style={labelStyle}>Next Follow-up Date</label>
+                    <input type="date" value={nextFollowUp} onChange={e => setNextFollowUp(e.target.value)} style={fieldStyle} />
+                </div>
+
+                <div style={{marginBottom:'1.5rem'}}>
+                    <label style={labelStyle}>Description</label>
+                    <textarea placeholder="Deal notes..." value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{...fieldStyle, resize:'vertical'}} />
+                </div>
+
+                <div style={{display:'flex',gap:'0.75rem'}}>
+                    <button onClick={handleSubmit} disabled={loading}
+                        style={{flex:1,padding:'12px',background:'#FFD93D',color:'#0D0E2E',border:'none',borderRadius:'8px',fontWeight:'700',cursor:loading?'not-allowed':'pointer',opacity:loading?0.7:1}}>
+                        {loading ? 'Creating...' : 'Create Deal'}
+                    </button>
+                    <button onClick={onClose}
+                        style={{flex:1,padding:'12px',background:'rgba(160,163,196,0.1)',color:'#E8E8F0',border:'1px solid rgba(160,163,196,0.25)',borderRadius:'8px',fontWeight:'600',cursor:'pointer'}}>
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -2852,7 +3057,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         } catch (err) {
             alert('Error: ' + err.message);
         } finally {
-            setLoading(false);
+            setLoading(false); log('Loading completed');
         }
     };
 
@@ -3235,8 +3440,8 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                     <div className="space-y-2">
                                         {selectedItems.jobs.map(job => (
                                             <div key={job.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
-                                                <div className="flex-1">{(job.title || 'Untitled Job')}</div>
-                                                <div className="badge badge-info">{(job.status || 'pending')}</div>
+                                                <div className="flex-1">{job.title}</div>
+                                                <div className="badge badge-info">{job.status}</div>
                                                 {job.value && <div className="text-green-400 font-medium">${job.value}</div>}
                                             </div>
                                         ))}
@@ -3266,9 +3471,26 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             }, []);
 
             if (loading) {
+                // Access resetApp from AuthProvider context (we'll add it there)
                 return (
                     <div className="min-h-screen bg-[#0D0E2E] flex items-center justify-center">
-                        <div className="loading-spinner"></div>
+                        <div className="text-center">
+                            <div className="loading-spinner mx-auto mb-4"></div>
+                            <div className="text-xl text-gray-400 mb-4">Loading your account...</div>
+                            <div style={{color:'#A0A3C4',fontSize:'0.875rem',marginBottom:'1rem'}}>
+                                Taking longer than expected?
+                            </div>
+                            <button onClick={() => {
+                                try { 
+                                    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                                    authKeys.forEach(k => localStorage.removeItem(k));
+                                    sessionStorage.clear();
+                                } catch(e) {}
+                                window.location.reload();
+                            }} style={{background:'rgba(160,163,196,0.1)',color:'#A0A3C4',padding:'8px 16px',borderRadius:'6px',border:'1px solid rgba(160,163,196,0.2)',fontSize:'0.875rem',cursor:'pointer'}}>
+                                🔄 Reset App
+                            </button>
+                        </div>
                     </div>
                 );
             }
@@ -3282,9 +3504,11 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
         const App = () => {
             return (
-                <AuthProvider>
-                    <AppInner />
-                </AuthProvider>
+                <ErrorBoundary>
+                    <AuthProvider>
+                        <AppInner />
+                    </AuthProvider>
+                </ErrorBoundary>
             );
         };
 
