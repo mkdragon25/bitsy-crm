@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BitsyCRM Browser Diagnostic</title>
+    <style>
+        body { font-family: system-ui; max-width: 800px; margin: 2rem auto; padding: 2rem; background: #0D0E2E; color: #E8E8F0; }
+        .status { padding: 1rem; margin: 1rem 0; border-radius: 8px; }
+        .good { background: rgba(52,199,89,0.15); border: 1px solid rgba(52,199,89,0.3); }
+        .warn { background: rgba(255,159,10,0.15); border: 1px solid rgba(255,159,10,0.3); }
+        .bad { background: rgba(255,69,58,0.15); border: 1px solid rgba(255,69,58,0.3); }
+        button { background: #FFD93D; color: #0D0E2E; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 0.5rem; font-weight: 600; }
+        button:hover { opacity: 0.9; }
+        pre { background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; }
+        .summary { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>🔍 BitsyCRM Browser Diagnostic</h1>
+    <div id="results">
+        <div style="text-align: center; padding: 2rem;">
+            <div style="font-size: 2rem;">⏳</div>
+            <div>Running diagnostics...</div>
+        </div>
+    </div>
+
+    <script>
+        function runDiagnostics() {
+            const results = [];
+            let hasIssues = false;
+
+            // Check localStorage
+            try {
+                const testKey = 'diagnostic_test';
+                localStorage.setItem(testKey, 'test');
+                localStorage.removeItem(testKey);
+                results.push({ type: 'good', title: '✅ localStorage Working', detail: 'Can read and write to localStorage' });
+            } catch(e) {
+                results.push({ type: 'bad', title: '❌ localStorage Failed', detail: e.message });
+                hasIssues = true;
+            }
+
+            // Check sessionStorage
+            try {
+                const testKey = 'diagnostic_test';
+                sessionStorage.setItem(testKey, 'test');
+                sessionStorage.removeItem(testKey);
+                results.push({ type: 'good', title: '✅ sessionStorage Working', detail: 'Can read and write to sessionStorage' });
+            } catch(e) {
+                results.push({ type: 'bad', title: '❌ sessionStorage Failed', detail: e.message });
+                hasIssues = true;
+            }
+
+            // Check Supabase storage
+            const supabaseKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+            if (supabaseKeys.length === 0) {
+                results.push({ type: 'warn', title: '⚠️ No Supabase Storage', detail: 'No Supabase auth tokens found - you may need to sign in' });
+            } else {
+                let corrupted = 0;
+                supabaseKeys.forEach(key => {
+                    try {
+                        const value = localStorage.getItem(key);
+                        JSON.parse(value);
+                    } catch(e) {
+                        corrupted++;
+                    }
+                });
+                
+                if (corrupted === 0) {
+                    results.push({ type: 'good', title: '✅ Supabase Storage Healthy', detail: `Found ${supabaseKeys.length} valid auth tokens` });
+                } else {
+                    results.push({ type: 'bad', title: '❌ Corrupted Supabase Storage', detail: `${corrupted} of ${supabaseKeys.length} auth tokens are corrupted` });
+                    hasIssues = true;
+                }
+            }
+
+            // Check total storage usage
+            let totalSize = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    totalSize += key.length + localStorage[key].length;
+                }
+            }
+            const sizeKB = (totalSize / 1024).toFixed(1);
+            const maxSizeKB = 5120; // 5MB typical limit
+            const usage = (totalSize / (maxSizeKB * 1024) * 100).toFixed(1);
+
+            if (usage < 80) {
+                results.push({ type: 'good', title: '✅ Storage Usage Normal', detail: `${sizeKB}KB used (${usage}% of limit)` });
+            } else {
+                results.push({ type: 'warn', title: '⚠️ High Storage Usage', detail: `${sizeKB}KB used (${usage}% of limit) - consider clearing data` });
+            }
+
+            // Render results
+            const html = `
+                <div class="summary ${hasIssues ? 'bad' : 'good'}">
+                    ${hasIssues ? '❌ Issues Found' : '✅ All Systems Healthy'}
+                </div>
+                ${results.map(r => `
+                    <div class="status ${r.type}">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">${r.title}</div>
+                        <div style="font-size: 0.9rem; opacity: 0.9;">${r.detail}</div>
+                    </div>
+                `).join('')}
+                
+                <div style="margin-top: 2rem;">
+                    <h3>🛠️ Quick Fixes</h3>
+                    <button onclick="clearSupabaseStorage()">Clear Supabase Auth</button>
+                    <button onclick="clearAllStorage()">Clear All Storage</button>
+                    <button onclick="window.location.reload()">Refresh Page</button>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <h3>📋 Raw Data</h3>
+                    <pre>${JSON.stringify({
+                        localStorage: Object.keys(localStorage).reduce((acc, key) => {
+                            acc[key] = localStorage[key].length < 100 ? localStorage[key] : `[${localStorage[key].length} chars]`;
+                            return acc;
+                        }, {}),
+                        sessionStorage: Object.keys(sessionStorage).reduce((acc, key) => {
+                            acc[key] = sessionStorage[key].length < 100 ? sessionStorage[key] : `[${sessionStorage[key].length} chars]`;
+                            return acc;
+                        }, {}),
+                    }, null, 2)}</pre>
+                </div>
+            `;
+            
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function clearSupabaseStorage() {
+            try {
+                const keys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                keys.forEach(k => localStorage.removeItem(k));
+                alert(`Cleared ${keys.length} Supabase auth tokens. Refresh the page to re-run diagnostics.`);
+                runDiagnostics();
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        function clearAllStorage() {
+            if (confirm('This will clear ALL browser storage for this domain. Continue?')) {
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    alert('All storage cleared. Refresh the page to re-run diagnostics.');
+                    runDiagnostics();
+                } catch(e) {
+                    alert('Error: ' + e.message);
+                }
+            }
+        }
+
+        // Run diagnostics on page load
+        setTimeout(runDiagnostics, 500);
+    </script>
+</body>
+</html>
