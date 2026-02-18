@@ -16,53 +16,173 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const AuthContext = createContext();
 
-        const AuthProvider = ({ children }) => {
+        // Error Boundary to catch React crashes
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error('React Error Boundary caught:', error, errorInfo);
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem'}}>
+                            <div style={{textAlign:'center',maxWidth:'500px'}}>
+                                <div style={{fontSize:'3rem',marginBottom:'1rem'}}>💥</div>
+                                <h1 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>React Error</h1>
+                                <p style={{color:'#A0A3C4',marginBottom:'1rem',lineHeight:'1.6'}}>
+                                    The app crashed due to a React error. This is usually caused by corrupted browser storage.
+                                </p>
+                                <details style={{marginBottom:'2rem',textAlign:'left',background:'rgba(255,69,58,0.1)',padding:'1rem',borderRadius:'8px'}}>
+                                    <summary style={{cursor:'pointer',marginBottom:'0.5rem',fontWeight:'600'}}>Error Details</summary>
+                                    <code style={{fontSize:'0.8rem',color:'#ff453a',wordBreak:'break-all'}}>
+                                        {this.state.error?.toString() || 'Unknown error'}
+                                    </code>
+                                </details>
+                                <button onClick={() => {
+                                    try { 
+                                        Object.keys(localStorage).filter(k => k.includes('supabase')).forEach(k => localStorage.removeItem(k)); 
+                                        sessionStorage.clear(); 
+                                    } catch(e) {}
+                                    window.location.reload();
+                                }} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',fontWeight:'600',cursor:'pointer'}}>
+                                    🔄 Clear Storage & Reload
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
+                const AuthProvider = ({ children }) => {
             const [user, setUser] = useState(null);
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
-            const orgLoadedForUser = React.useRef(null); // tracks which userId org is loaded for
+            const [crashed, setCrashed] = useState(false);
+            const [debugMode, setDebugMode] = useState(false);
+            const [debugLog, setDebugLog] = useState([]);
+            const orgLoadedForUser = React.useRef(null);
+            
+            const log = (msg) => {
+                const timestamp = new Date().toLocaleTimeString();
+                setDebugLog(prev => [...prev, `${timestamp}: ${msg}`].slice(-10)); // keep last 10
+                console.log('[AuthProvider]', msg);
+            };
+
+            // Clear any corrupted Supabase storage on mount
+            useEffect(() => {
+                try {
+                    // Clear stale auth storage that might be corrupted
+                    const authKey = `sb-${supabase.supabaseUrl.split('//')[1].split('.')[0]}-auth-token`;
+                    const storedAuth = localStorage.getItem(authKey);
+                    if (storedAuth) {
+                        try { JSON.parse(storedAuth); } 
+                        catch(e) { 
+                            console.warn('Clearing corrupted auth storage');
+                            localStorage.removeItem(authKey); 
+                        }
+                    }
+                } catch(e) { /* ignore */ }
+            }, []);
+
+            const resetApp = () => {
+                // Nuclear reset without clearing all browser data
+                try {
+                    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                    authKeys.forEach(k => localStorage.removeItem(k));
+                    sessionStorage.clear();
+                } catch(e) { /* ignore */ }
+                setCrashed(false);
+                setLoading(true);
+                setUser(null);
+                setOrganization(null);
+                orgLoadedForUser.current = null;
+                window.location.reload();
+            };
+
+            // Crash recovery UI
+            if (crashed) {
+                return (
+                    <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem'}}>
+                        <div style={{textAlign:'center',maxWidth:'400px'}}>
+                            <div style={{fontSize:'3rem',marginBottom:'1rem'}}>⚠️</div>
+                            <h1 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>App Crashed</h1>
+                            <p style={{color:'#A0A3C4',marginBottom:'2rem',lineHeight:'1.6'}}>
+                                Something went wrong. This usually happens when browser storage gets corrupted.
+                            </p>
+                            <button onClick={resetApp} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',fontWeight:'600',cursor:'pointer'}}>
+                                🔄 Reset App
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
 
             useEffect(() => {
-                // Step 1: immediately read the current session so we never hang on refresh
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (!session?.user) {
-                        // No session at all — stop loading, show login
-                        setLoading(false);
+                // Wrap everything in try/catch to prevent crashes from killing the app
+                const initAuth = async () => {
+                    try {
+                        // Step 1: get current session
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.user) {
+                            setLoading(false); log('Loading completed');
+                            return;
+                        }
+
+                        // Step 2: listen for auth changes
+                        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                            try {
+                                if (event === 'SIGNED_OUT' || !session?.user) {
+                                    setUser(null);
+                                    setOrganization(null);
+                                    orgLoadedForUser.current = null;
+                                    setLoading(false); log('Loading completed');
+                                    return;
+                                }
+
+                                if (session.user.id === orgLoadedForUser.current) {
+                                    setLoading(false); log('Loading completed');
+                                    return;
+                                }
+
+                                setUser(session.user); log(`User set: ${session.user.email}`);
+                                await loadOrganization(session.user.id);
+                                await checkSuperAdmin(session.user.email);
+                                setLoading(false); log('Loading completed');
+                            } catch (e) {
+                                console.error('Auth state change error:', e);
+                                setCrashed(true);
+                            }
+                        });
+
+                        // Safety timeout: force loading false after 5s
+                        const timeout = setTimeout(() => {
+                            console.warn('Auth timeout - forcing loading = false');
+                            setLoading(false); log('Loading completed');
+                        }, 5000);
+
+                        return () => {
+                            authListener?.subscription?.unsubscribe();
+                            clearTimeout(timeout);
+                        };
+                    } catch (e) {
+                        console.error('Auth initialization error:', e);
+                        setCrashed(true);
                     }
-                    // If there IS a session, onAuthStateChange INITIAL_SESSION will handle it
-                });
-
-                // Step 2: listen for auth changes
-                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (event === 'SIGNED_OUT' || !session?.user) {
-                        setUser(null);
-                        setOrganization(null);
-                        orgLoadedForUser.current = null;
-                        setLoading(false);
-                        return;
-                    }
-
-                    // TOKEN_REFRESHED / USER_UPDATED — user didn't change, skip reload
-                    if (session.user.id === orgLoadedForUser.current) {
-                        setLoading(false);
-                        return;
-                    }
-
-                    // New user session — load their org
-                    setUser(session.user);
-                    await loadOrganization(session.user.id);
-                    await checkSuperAdmin(session.user.email);
-                    setLoading(false);
-                });
-
-                // Safety net: if loading is still true after 8s, release it
-                const timeout = setTimeout(() => setLoading(false), 8000);
-
-                return () => {
-                    authListener?.subscription?.unsubscribe();
-                    clearTimeout(timeout);
                 };
+                
+                initAuth();
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -86,7 +206,7 @@ const AuthContext = createContext();
                         .single();
 
                     if (data) {
-                        setOrganization(data);
+                        setOrganization(data); log(`Organization loaded: ${data.name}`);
                         orgLoadedForUser.current = userId;
                         return;
                     }
@@ -419,7 +539,7 @@ const AuthContext = createContext();
                 try {
                     if (mode === 'signup') {
                         // Require payment before creating account
-                        setLoading(false);
+                        setLoading(false); log('Loading completed');
                         onClose();
                         
                         // Store signup data in sessionStorage
@@ -443,7 +563,7 @@ const AuthContext = createContext();
                     }
                 } catch (err) {
                     setError(err.message);
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -653,7 +773,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     console.error('Error loading admin data:', err);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1240,7 +1360,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     console.error('Error loading customer:', err);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1438,7 +1558,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     alert('Error: ' + err.message);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1504,7 +1624,7 @@ const AuthContext = createContext();
 
                 // Use prop orgId, or fetch it directly if not loaded yet
                 const orgId = resolvedOrgId;
-                if (!orgId) { setError('Still loading your account — please wait 2 seconds and try again.'); setLoading(false); return; }
+                if (!orgId) { setError('Still loading your account — please wait 2 seconds and try again.'); setLoading(false); log('Loading completed'); return; }
 
                 try {
                     const { error: dbError } = await supabase.from('jobs').insert({
@@ -1517,11 +1637,11 @@ const AuthContext = createContext();
                         value: value ? parseFloat(value) : 0,
                         scheduled_date: scheduledDate || null,
                     });
-                    if (dbError) { setError(dbError.message); setLoading(false); return; }
+                    if (dbError) { setError(dbError.message); setLoading(false); log('Loading completed'); return; }
                     onSuccess();
                 } catch (err) {
                     setError(err.message || 'Something went wrong');
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -1884,13 +2004,13 @@ const AuthContext = createContext();
 
                     if (dbError) {
                         setError(dbError.message);
-                        setLoading(false);
+                        setLoading(false); log('Loading completed');
                         return;
                     }
                     onSuccess();
                 } catch (err) {
                     setError(err.message || 'Something went wrong');
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2017,7 +2137,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     console.error('Error loading job:', err);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2223,7 +2343,7 @@ const AuthContext = createContext();
                 } catch (err) {
                     alert('Error: ' + err.message);
                 } finally {
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2496,7 +2616,7 @@ const AuthContext = createContext();
                     onSuccess(); // Close modal
                 } catch (err) {
                     alert('Error: ' + err.message);
-                    setLoading(false);
+                    setLoading(false); log('Loading completed');
                 }
             };
 
@@ -2718,7 +2838,7 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
             orgId = orgData?.id;
         }
         console.log('[CreateDeal] orgId:', orgId, '  userId:', user?.id);
-        if (!orgId) { setError('Could not find your organization. Please refresh.'); setLoading(false); return; }
+        if (!orgId) { setError('Could not find your organization. Please refresh.'); setLoading(false); log('Loading completed'); return; }
 
         const payload = {
             organization_id: orgId,
@@ -2738,7 +2858,7 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
         const { data: inserted, error: dbError } = await supabase.from('deals').insert(payload).select().single();
         console.log('[CreateDeal] result — data:', inserted, '  error:', dbError);
 
-        setLoading(false);
+        setLoading(false); log('Loading completed');
         if (dbError) { 
             console.error('[CreateDeal] FAILED:', dbError);
             setError(dbError.message);
@@ -2937,7 +3057,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         } catch (err) {
             alert('Error: ' + err.message);
         } finally {
-            setLoading(false);
+            setLoading(false); log('Loading completed');
         }
     };
 
@@ -3351,9 +3471,26 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             }, []);
 
             if (loading) {
+                // Access resetApp from AuthProvider context (we'll add it there)
                 return (
                     <div className="min-h-screen bg-[#0D0E2E] flex items-center justify-center">
-                        <div className="loading-spinner"></div>
+                        <div className="text-center">
+                            <div className="loading-spinner mx-auto mb-4"></div>
+                            <div className="text-xl text-gray-400 mb-4">Loading your account...</div>
+                            <div style={{color:'#A0A3C4',fontSize:'0.875rem',marginBottom:'1rem'}}>
+                                Taking longer than expected?
+                            </div>
+                            <button onClick={() => {
+                                try { 
+                                    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                                    authKeys.forEach(k => localStorage.removeItem(k));
+                                    sessionStorage.clear();
+                                } catch(e) {}
+                                window.location.reload();
+                            }} style={{background:'rgba(160,163,196,0.1)',color:'#A0A3C4',padding:'8px 16px',borderRadius:'6px',border:'1px solid rgba(160,163,196,0.2)',fontSize:'0.875rem',cursor:'pointer'}}>
+                                🔄 Reset App
+                            </button>
+                        </div>
                     </div>
                 );
             }
@@ -3367,9 +3504,11 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
         const App = () => {
             return (
-                <AuthProvider>
-                    <AppInner />
-                </AuthProvider>
+                <ErrorBoundary>
+                    <AuthProvider>
+                        <AppInner />
+                    </AuthProvider>
+                </ErrorBoundary>
             );
         };
 
