@@ -14,33 +14,32 @@ const PRICE_PER_USER = 27.00;
 // Initialize clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Error Boundary for crash recovery  
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false };
-            }
+        // Badge helpers moved to module scope to prevent JobsView crashes
+        const getStatusBadge = (status) => {
+            const badges = {
+                new: 'badge-info',
+                pending: 'badge-warning', 
+                scheduled: 'badge-info',
+                in_progress: 'badge-info',
+                on_hold: 'badge-warning',
+                completed: 'badge-success',
+                invoiced: 'badge-info', 
+                paid: 'badge-success',
+                cancelled: 'badge-error',
+                lost: 'badge-error'
+            };
+            return badges[status] || 'badge-warning';
+        };
 
-            static getDerivedStateFromError(error) {
-                return { hasError: true };
-            }
-
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                            <div style={{textAlign:'center'}}>
-                                <h1>💥 App Crashed</h1>
-                                <button onClick={() => window.location.reload()} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',cursor:'pointer'}}>
-                                    🔄 Reload
-                                </button>
-                            </div>
-                        </div>
-                    );
-                }
-                return this.props.children;
-            }
-        }
+        const getPriorityBadge = (priority) => {
+            const badges = {
+                low: 'badge-success',
+                medium: 'badge-info', 
+                high: 'badge-warning',
+                urgent: 'badge-error'
+            };
+            return badges[priority] || 'badge-info';
+        };
 
 const AuthContext = createContext();
 
@@ -49,59 +48,32 @@ const AuthContext = createContext();
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
-            const orgLoadedForUser = React.useRef(null);
 
             useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        // Check current session immediately (prevents refresh hang)
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (!session?.user) {
-                            setLoading(false);
-                            return;
-                        }
+                // Check session immediately to prevent refresh hang
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (!session?.user) setLoading(false);
+                });
 
-                        // Listen for auth changes with deduplication
-                        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                            try {
-                                if (event === 'SIGNED_OUT' || !session?.user) {
-                                    setUser(null);
-                                    setOrganization(null);
-                                    orgLoadedForUser.current = null;
-                                    setLoading(false);
-                                    return;
-                                }
-
-                                // Skip reload if same user (deduplication)
-                                if (session.user.id === orgLoadedForUser.current) {
-                                    setLoading(false);
-                                    return;
-                                }
-
-                                setUser(session.user);
-                                await loadOrganization(session.user.id);
-                                await checkSuperAdmin(session.user.email);
-                                setLoading(false);
-                            } catch (e) {
-                                console.error('Auth error:', e);
-                                setLoading(false);
-                            }
-                        });
-
-                        // Safety timeout
-                        const timeout = setTimeout(() => setLoading(false), 5000);
-
-                        return () => {
-                            authListener?.subscription?.unsubscribe();
-                            clearTimeout(timeout);
-                        };
-                    } catch (e) {
-                        console.error('Auth init error:', e);
-                        setLoading(false);
+                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                    if (session?.user) {
+                        setUser(session.user);
+                        await loadOrganization(session.user.id);
+                        await checkSuperAdmin(session.user.email);
+                    } else {
+                        setUser(null);
+                        setOrganization(null);
                     }
-                };
+                    setLoading(false);
+                });
+
+                // Safety timeout
+                const timeout = setTimeout(() => setLoading(false), 5000);
                 
-                initAuth();
+                return () => {
+                    authListener?.subscription?.unsubscribe();
+                    clearTimeout(timeout);
+                };
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -117,18 +89,14 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                try {
-                    const { data, error } = await supabase
-                        .from('organizations')
-                        .select('*')
-                        .eq('owner_id', userId)
-                        .single();
+                // Try to load existing org row
+                const { data, error } = await supabase
+                    .from('organizations')
+                    .select('*')
+                    .eq('owner_id', userId)
+                    .single();
 
-                    if (data) { 
-                        setOrganization(data); 
-                        orgLoadedForUser.current = userId;
-                        return; 
-                    }
+                if (data) { setOrganization(data); return; }
 
                 // Table missing entirely — schema not run yet, bail out
                 const errMsg = error?.message || '';
@@ -2100,25 +2068,7 @@ const AuthContext = createContext();
                 }
             };
 
-            const getStatusBadge = (status) => {
-                const badges = {
-                    pending: 'badge-warning',
-                    in_progress: 'badge-info',
-                    completed: 'badge-success',
-                    invoiced: 'badge-info',
-                    paid: 'badge-success',
-                    cancelled: 'badge-error'
-                };
-                return badges[status] || 'badge-warning';
-            };
 
-            const getPriorityBadge = (priority) => {
-                const badges = {
-                    low: 'badge-success',
-                    medium: 'badge-info',
-                    high: 'badge-warning',
-                    urgent: 'badge-error'
-                };
                 return badges[priority] || 'badge-info';
             };
 
@@ -2143,7 +2093,7 @@ const AuthContext = createContext();
                         <div className="flex justify-between items-start mb-8">
                             <div>
                                 <button onClick={onClose} className="text-gray-400 hover:text-white mb-4 flex items-center gap-2">← Back to Jobs</button>
-                                <h1 className="heading-font text-4xl font-bold mb-2">{job.title}</h1>
+                                <h1 className="heading-font text-4xl font-bold mb-2">{(job.title || 'Untitled Job')}</h1>
                                 <div className="flex gap-3 mb-4">
                                     <span className={`badge ${getStatusBadge(job.status)}`}>{(job.status || 'pending').replace('_', ' ')}</span>
                                     <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority || 'medium'}</span>
@@ -2186,7 +2136,7 @@ const AuthContext = createContext();
                                 <h2 className="text-xl font-bold mb-4">Job Details</h2>
                                 <div className="space-y-3">
                                     <div><div className="text-sm text-gray-400">Description</div><div>{job.description || '-'}</div></div>
-                                    <div><div className="text-sm text-gray-400">Value</div><div className="text-green-400 font-bold">${parseFloat(job.value || 0).toFixed(2)}</div></div>
+                                    <div><div className="text-sm text-gray-400">Value</div><div className="text-green-400 font-bold">${parseFloat((job.value || 0)).toFixed(2)}</div></div>
                                     <div><div className="text-sm text-gray-400">Scheduled Date</div><div>{job.scheduled_date ? new Date(job.scheduled_date).toLocaleDateString() : '-'}</div></div>
                                     <div><div className="text-sm text-gray-400">Created</div><div>{new Date(job.created_at).toLocaleDateString()}</div></div>
                                 </div>
@@ -2393,7 +2343,7 @@ const AuthContext = createContext();
                             <div key={job.id} className="glass-card p-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleJobClick(job)}>
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold mb-2">{job.title}</h3>
+                                        <h3 className="text-xl font-bold mb-2">{(job.title || 'Untitled Job')}</h3>
                                         <p className="text-gray-400 mb-3">{job.description}</p>
                                         <div className="flex gap-4 text-sm">
                                             <span className="text-gray-400">Customer: <span className="text-white">{getCustomerName(job.customer_id)}</span></span>
@@ -3285,8 +3235,8 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                     <div className="space-y-2">
                                         {selectedItems.jobs.map(job => (
                                             <div key={job.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
-                                                <div className="flex-1">{job.title}</div>
-                                                <div className="badge badge-info">{job.status}</div>
+                                                <div className="flex-1">{(job.title || 'Untitled Job')}</div>
+                                                <div className="badge badge-info">{(job.status || 'pending')}</div>
                                                 {job.value && <div className="text-green-400 font-medium">${job.value}</div>}
                                             </div>
                                         ))}
@@ -3332,11 +3282,9 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
         const App = () => {
             return (
-                <ErrorBoundary>
-                    <AuthProvider>
-                        <AppInner />
-                    </AuthProvider>
-                </ErrorBoundary>
+                <AuthProvider>
+                    <AppInner />
+                </AuthProvider>
             );
         };
 
