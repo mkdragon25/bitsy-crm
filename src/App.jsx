@@ -14,27 +14,33 @@ const PRICE_PER_USER = 27.00;
 // Initialize clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Badge helper functions (module scope)
-        const getStatusBadge = (status) => {
-            const badges = {
-                pending: 'badge-warning',
-                in_progress: 'badge-info',
-                completed: 'badge-success',
-                cancelled: 'badge-error',
-                lost: 'badge-error'
-            };
-            return badges[status] || 'badge-warning';
-        };
+        // Error Boundary for crash recovery  
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false };
+            }
 
-        const getPriorityBadge = (priority) => {
-            const badges = {
-                low: 'badge-success',
-                medium: 'badge-info',
-                high: 'badge-warning',
-                urgent: 'badge-error'
-            };
-            return badges[priority] || 'badge-info';
-        };
+            static getDerivedStateFromError(error) {
+                return { hasError: true };
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <div style={{textAlign:'center'}}>
+                                <h1>💥 App Crashed</h1>
+                                <button onClick={() => window.location.reload()} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',cursor:'pointer'}}>
+                                    🔄 Reload
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
 
 const AuthContext = createContext();
 
@@ -43,35 +49,59 @@ const AuthContext = createContext();
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
+            const orgLoadedForUser = React.useRef(null);
 
             useEffect(() => {
-                // Check session immediately on mount
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (!session?.user) {
+                const initAuth = async () => {
+                    try {
+                        // Check current session immediately (prevents refresh hang)
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.user) {
+                            setLoading(false);
+                            return;
+                        }
+
+                        // Listen for auth changes with deduplication
+                        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                            try {
+                                if (event === 'SIGNED_OUT' || !session?.user) {
+                                    setUser(null);
+                                    setOrganization(null);
+                                    orgLoadedForUser.current = null;
+                                    setLoading(false);
+                                    return;
+                                }
+
+                                // Skip reload if same user (deduplication)
+                                if (session.user.id === orgLoadedForUser.current) {
+                                    setLoading(false);
+                                    return;
+                                }
+
+                                setUser(session.user);
+                                await loadOrganization(session.user.id);
+                                await checkSuperAdmin(session.user.email);
+                                setLoading(false);
+                            } catch (e) {
+                                console.error('Auth error:', e);
+                                setLoading(false);
+                            }
+                        });
+
+                        // Safety timeout
+                        const timeout = setTimeout(() => setLoading(false), 5000);
+
+                        return () => {
+                            authListener?.subscription?.unsubscribe();
+                            clearTimeout(timeout);
+                        };
+                    } catch (e) {
+                        console.error('Auth init error:', e);
                         setLoading(false);
                     }
-                });
-
-                // Listen for auth changes
-                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (session?.user) {
-                        setUser(session.user);
-                        await loadOrganization(session.user.id);
-                        await checkSuperAdmin(session.user.email);
-                    } else {
-                        setUser(null);
-                        setOrganization(null);
-                    }
-                    setLoading(false);
-                });
-
-                // Safety timeout - force loading false after 5 seconds
-                const timeout = setTimeout(() => setLoading(false), 5000);
-
-                return () => {
-                    authListener?.subscription?.unsubscribe();
-                    clearTimeout(timeout);
                 };
+                
+                initAuth();
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -87,14 +117,18 @@ const AuthContext = createContext();
             };
 
             const loadOrganization = async (userId) => {
-                // Try to load existing org row
-                const { data, error } = await supabase
-                    .from('organizations')
-                    .select('*')
-                    .eq('owner_id', userId)
-                    .single();
+                try {
+                    const { data, error } = await supabase
+                        .from('organizations')
+                        .select('*')
+                        .eq('owner_id', userId)
+                        .single();
 
-                if (data) { setOrganization(data); return; }
+                    if (data) { 
+                        setOrganization(data); 
+                        orgLoadedForUser.current = userId;
+                        return; 
+                    }
 
                 // Table missing entirely — schema not run yet, bail out
                 const errMsg = error?.message || '';
@@ -2066,7 +2100,25 @@ const AuthContext = createContext();
                 }
             };
 
+            const getStatusBadge = (status) => {
+                const badges = {
+                    pending: 'badge-warning',
+                    in_progress: 'badge-info',
+                    completed: 'badge-success',
+                    invoiced: 'badge-info',
+                    paid: 'badge-success',
+                    cancelled: 'badge-error'
+                };
+                return badges[status] || 'badge-warning';
+            };
 
+            const getPriorityBadge = (priority) => {
+                const badges = {
+                    low: 'badge-success',
+                    medium: 'badge-info',
+                    high: 'badge-warning',
+                    urgent: 'badge-error'
+                };
                 return badges[priority] || 'badge-info';
             };
 
@@ -3280,9 +3332,11 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
         const App = () => {
             return (
-                <AuthProvider>
-                    <AppInner />
-                </AuthProvider>
+                <ErrorBoundary>
+                    <AuthProvider>
+                        <AppInner />
+                    </AuthProvider>
+                </ErrorBoundary>
             );
         };
 
