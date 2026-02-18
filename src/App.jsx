@@ -14,37 +14,27 @@ const PRICE_PER_USER = 27.00;
 // Initialize clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Error Boundary to catch React crashes
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false };
-            }
+        // Badge helper functions (module scope)
+        const getStatusBadge = (status) => {
+            const badges = {
+                pending: 'badge-warning',
+                in_progress: 'badge-info',
+                completed: 'badge-success',
+                cancelled: 'badge-error',
+                lost: 'badge-error'
+            };
+            return badges[status] || 'badge-warning';
+        };
 
-            static getDerivedStateFromError(error) {
-                return { hasError: true };
-            }
-
-            componentDidCatch(error, errorInfo) {
-                console.error('React Error:', error, errorInfo);
-            }
-
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem'}}>
-                            <div style={{textAlign:'center'}}>
-                                <h1 style={{fontSize:'2rem',marginBottom:'1rem'}}>⚠️ App Crashed</h1>
-                                <button onClick={() => window.location.reload()} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',fontWeight:'600',cursor:'pointer'}}>
-                                    🔄 Reload Page
-                                </button>
-                            </div>
-                        </div>
-                    );
-                }
-                return this.props.children;
-            }
-        }
+        const getPriorityBadge = (priority) => {
+            const badges = {
+                low: 'badge-success',
+                medium: 'badge-info',
+                high: 'badge-warning',
+                urgent: 'badge-error'
+            };
+            return badges[priority] || 'badge-info';
+        };
 
 const AuthContext = createContext();
 
@@ -55,47 +45,33 @@ const AuthContext = createContext();
             const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        // Check current session first
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (!session?.user) {
-                            setLoading(false);
-                            return;
-                        }
-
-                        // Listen for auth changes
-                        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                            try {
-                                if (session?.user) {
-                                    setUser(session.user);
-                                    await loadOrganization(session.user.id);
-                                    await checkSuperAdmin(session.user.email);
-                                } else {
-                                    setUser(null);
-                                    setOrganization(null);
-                                }
-                                setLoading(false);
-                            } catch (e) {
-                                console.error('Auth error:', e);
-                                setLoading(false);
-                            }
-                        });
-
-                        // Safety timeout
-                        const timeout = setTimeout(() => setLoading(false), 8000);
-
-                        return () => {
-                            authListener?.subscription?.unsubscribe();
-                            clearTimeout(timeout);
-                        };
-                    } catch (e) {
-                        console.error('Auth init error:', e);
+                // Check session immediately on mount
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (!session?.user) {
                         setLoading(false);
                     }
-                };
+                });
 
-                initAuth();
+                // Listen for auth changes
+                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                    if (session?.user) {
+                        setUser(session.user);
+                        await loadOrganization(session.user.id);
+                        await checkSuperAdmin(session.user.email);
+                    } else {
+                        setUser(null);
+                        setOrganization(null);
+                    }
+                    setLoading(false);
+                });
+
+                // Safety timeout - force loading false after 5 seconds
+                const timeout = setTimeout(() => setLoading(false), 5000);
+
+                return () => {
+                    authListener?.subscription?.unsubscribe();
+                    clearTimeout(timeout);
+                };
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -2090,25 +2066,7 @@ const AuthContext = createContext();
                 }
             };
 
-            const getStatusBadge = (status) => {
-                const badges = {
-                    pending: 'badge-warning',
-                    in_progress: 'badge-info',
-                    completed: 'badge-success',
-                    invoiced: 'badge-info',
-                    paid: 'badge-success',
-                    cancelled: 'badge-error'
-                };
-                return badges[status] || 'badge-warning';
-            };
 
-            const getPriorityBadge = (priority) => {
-                const badges = {
-                    low: 'badge-success',
-                    medium: 'badge-info',
-                    high: 'badge-warning',
-                    urgent: 'badge-error'
-                };
                 return badges[priority] || 'badge-info';
             };
 
@@ -2136,7 +2094,7 @@ const AuthContext = createContext();
                                 <h1 className="heading-font text-4xl font-bold mb-2">{job.title}</h1>
                                 <div className="flex gap-3 mb-4">
                                     <span className={`badge ${getStatusBadge(job.status)}`}>{(job.status || 'pending').replace('_', ' ')}</span>
-                                    <span className={`badge ${getPriorityBadge(job.priority)}`}>{(job.priority || 'medium')}</span>
+                                    <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority || 'medium'}</span>
                                 </div>
                                 {customer && (
                                     <div className="text-gray-400">Customer: <span className="text-white font-medium">{customer.name}</span></div>
@@ -2397,7 +2355,7 @@ const AuthContext = createContext();
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
                                         <span className={`badge ${getStatusBadge(job.status)}`}>{(job.status || 'pending').replace('_', ' ')}</span>
-                                        <span className={`badge ${getPriorityBadge(job.priority)}`}>{(job.priority || 'medium')}</span>
+                                        <span className={`badge ${getPriorityBadge(job.priority)}`}>{job.priority || 'medium'}</span>
                                         <button 
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -3322,11 +3280,9 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
         const App = () => {
             return (
-                <ErrorBoundary>
-                    <AuthProvider>
-                        <AppInner />
-                    </AuthProvider>
-                </ErrorBoundary>
+                <AuthProvider>
+                    <AppInner />
+                </AuthProvider>
             );
         };
 
