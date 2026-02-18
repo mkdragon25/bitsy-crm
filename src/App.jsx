@@ -18,7 +18,30 @@ const AuthContext = createContext();
 
         // Error Boundary to catch React crashes
         class ErrorBoundary extends React.Component {
-            constructor(props) {
+    
+        // Safe logo component with fallback
+        const Logo = ({ size = "h-10" }) => {
+            const [imageError, setImageError] = useState(false);
+            
+            if (imageError) {
+                return (
+                    <div className={`heading-font text-2xl font-bold ${size === "h-12" ? "text-white" : ""}`}>
+                        Bitsy<span className="text-[#FFD93D]">CRM</span>
+                    </div>
+                );
+            }
+            
+            return (
+                <img 
+                    src="/logo.png" 
+                    alt="BitsyCRM" 
+                    className={size}
+                    onError={() => setImageError(true)}
+                />
+            );
+        };
+        
+        constructor(props) {
                 super(props);
                 this.state = { hasError: false, error: null };
             }
@@ -324,14 +347,7 @@ const AuthContext = createContext();
                     {/* Navigation */}
                     <nav className="relative z-10 px-6 py-6">
                         <div className="max-w-7xl mx-auto flex justify-between items-center">
-                            <img 
-                                src="/logo.png" 
-                                alt="BitsyCRM" 
-                                style={{
-                                    height: '48px',
-                                    width: 'auto'
-                                }}
-                            />
+                            <Logo size="h-12" />
                             <div className="flex gap-4">
                                 <button 
                                     onClick={() => { setAuthMode('signin'); setShowAuthModal(true); }}
@@ -501,17 +517,9 @@ const AuthContext = createContext();
                     {/* Footer */}
                     <footer className="relative z-10 px-6 py-12 border-t border-gray-800">
                         <div className="max-w-6xl mx-auto text-center text-gray-500">
-                            <img 
-                                src="/logo.png" 
-                                alt="BitsyCRM" 
-                                style={{
-                                    height: '36px',
-                                    width: 'auto',
-                                    marginBottom: '1rem',
-                                    marginLeft: 'auto',
-                                    marginRight: 'auto'
-                                }}
-                            />
+                            <p className="heading-font text-2xl font-bold mb-4">
+                                Bitsy<span className="text-[#FFD93D]">CRM</span>
+                            </p>
                             <p>&copy; 2026 Bitsy CRM. All rights reserved.</p>
                         </div>
                     </footer>
@@ -1226,15 +1234,7 @@ const AuthContext = createContext();
                     {/* Sidebar */}
                     <div className={`dashboard-sidebar flex flex-col fixed md:relative z-30 h-full transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`} style={{width: '16rem'}}>
                         <div className="p-6 border-b border-gray-800">
-                            <img 
-                                src="/logo.png" 
-                                alt="BitsyCRM" 
-                                style={{
-                                    height: '40px',
-                                    width: 'auto',
-                                    marginBottom: '0.5rem'
-                                }}
-                            />
+                            <Logo size="h-10 mb-2" />
                             <div className="text-sm text-gray-400">{organization?.name}</div>
                         </div>
 
@@ -1290,7 +1290,7 @@ const AuthContext = createContext();
                         {/* Mobile header */}
                         <div className="md:hidden flex items-center gap-4 p-4 border-b border-gray-800 sticky top-0 bg-[#0D0E2E] z-10">
                             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">&#9776;</button>
-                            <img src="/logo.png" alt="BitsyCRM" style={{height: "32px", width: "auto"}} />
+                            <div className="heading-font text-xl font-bold">Bitsy<span className="text-[#FFD93D]">CRM</span></div>
                         </div>
                         <div className="p-4 md:p-8">
                             {renderContent()}
