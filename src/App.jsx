@@ -21,24 +21,88 @@ const AuthContext = createContext();
             const [organization, setOrganization] = useState(null);
             const [isSuperAdmin, setIsSuperAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
+            const [crashed, setCrashed] = useState(false);
+            const orgLoadedForUser = React.useRef(null);
+
+            // Crash recovery UI
+            if (crashed) {
+                return (
+                    <div style={{minHeight:'100vh',background:'#0D0E2E',color:'#E8E8F0',display:'flex',alignItems:'center',justifyContent:'center',padding:'2rem'}}>
+                        <div style={{textAlign:'center',maxWidth:'400px'}}>
+                            <div style={{fontSize:'3rem',marginBottom:'1rem'}}>⚠️</div>
+                            <h1 style={{fontSize:'1.5rem',fontWeight:'700',marginBottom:'1rem'}}>App Crashed</h1>
+                            <p style={{color:'#A0A3C4',marginBottom:'2rem',lineHeight:'1.6'}}>
+                                Something went wrong. This usually happens when browser storage gets corrupted.
+                            </p>
+                            <button onClick={() => {
+                                try {
+                                    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                                    authKeys.forEach(k => localStorage.removeItem(k));
+                                    sessionStorage.clear();
+                                } catch(e) {}
+                                window.location.reload();
+                            }} style={{background:'#FFD93D',color:'#0D0E2E',padding:'12px 24px',borderRadius:'8px',border:'none',fontWeight:'600',cursor:'pointer'}}>
+                                🔄 Reset App
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
 
             useEffect(() => {
-                // onAuthStateChange fires immediately with the current session on mount
-                // (INITIAL_SESSION event) — so we don't need a separate checkUser call
-                const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (session?.user) {
-                        setUser(session.user);
-                        await loadOrganization(session.user.id);
-                        await checkSuperAdmin(session.user.email);
-                    } else {
-                        setUser(null);
-                        setOrganization(null);
-                    }
-                    // Always mark loading done after first event
-                    setLoading(false);
-                });
+                const initAuth = async () => {
+                    try {
+                        // Step 1: get current session immediately to prevent refresh hang
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (!session?.user) {
+                            setLoading(false);
+                            return;
+                        }
 
-                return () => authListener?.subscription?.unsubscribe();
+                        // Step 2: listen for auth changes with deduplication
+                        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                            try {
+                                if (event === 'SIGNED_OUT' || !session?.user) {
+                                    setUser(null);
+                                    setOrganization(null);
+                                    orgLoadedForUser.current = null;
+                                    setLoading(false);
+                                    return;
+                                }
+
+                                // Skip reload if same user (deduplication)
+                                if (session.user.id === orgLoadedForUser.current) {
+                                    setLoading(false);
+                                    return;
+                                }
+
+                                setUser(session.user);
+                                await loadOrganization(session.user.id);
+                                await checkSuperAdmin(session.user.email);
+                                setLoading(false);
+                            } catch (e) {
+                                console.error('Auth state change error:', e);
+                                setCrashed(true);
+                            }
+                        });
+
+                        // Safety timeout: force loading false after 10s
+                        const timeout = setTimeout(() => {
+                            console.warn('Auth timeout - forcing loading = false');
+                            setLoading(false);
+                        }, 10000);
+
+                        return () => {
+                            authListener?.subscription?.unsubscribe();
+                            clearTimeout(timeout);
+                        };
+                    } catch (e) {
+                        console.error('Auth initialization error:', e);
+                        setCrashed(true);
+                    }
+                };
+                
+                initAuth();
             }, []);
 
             const checkSuperAdmin = async (email) => {
@@ -146,9 +210,12 @@ const AuthContext = createContext();
             };
 
             const signOut = async () => {
-                await supabase.auth.signOut();
+                // Clear state immediately so UI responds right away
                 setUser(null);
                 setOrganization(null);
+                orgLoadedForUser.current = null;
+                setLoading(false);
+                await supabase.auth.signOut();
             };
 
             return (
@@ -2593,24 +2660,84 @@ const PipelineView = ({ organization, onUpdate }) => {
     useEffect(() => { loadData(); }, [organization]);
 
     const loadData = async () => {
-        const { data: dealsData } = await supabase.from('deals').select('*').eq('organization_id', organization.id).eq('status', 'active');
-        setDeals(dealsData || []);
-        const { data: customersData } = await supabase.from('customers').select('*').eq('organization_id', organization.id);
-        setCustomers(customersData || []);
+        if (!organization?.id) return;
+        try {
+            // Load ALL deals (active, won, lost) - don't filter by status
+            const { data: dealsData } = await supabase
+                .from('deals')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .not('status', 'eq', 'archived')  // Only exclude archived deals
+                .order('created_at', { ascending: false });
+            setDeals(dealsData || []);
+            
+            const { data: customersData } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('organization_id', organization.id);
+            setCustomers(customersData || []);
+        } catch (error) {
+            console.error('Pipeline loadData error:', error);
+        }
     };
 
     const handleDrop = async (stage) => {
-        if (!draggedDeal) return;
-        await supabase.from('deals').update({ stage: stage.id, stage_order: stage.order }).eq('id', draggedDeal.id);
-        await supabase.from('activities').insert({
-            organization_id: organization.id, deal_id: draggedDeal.id,
-            activity_type: 'status_change', title: `Deal moved to ${stage.name}`
-        });
-        loadData();
+        if (!draggedDeal || draggedDeal.stage === stage.id) return;
+        
+        try {
+            // Update deal stage and status
+            const updates = { 
+                stage: stage.id, 
+                stage_order: stage.order,
+                // Set status based on stage
+                status: stage.id === 'won' ? 'won' : stage.id === 'lost' ? 'lost' : 'active'
+            };
+            
+            // Add close date for won deals
+            if (stage.id === 'won') {
+                updates.actual_close_date = new Date().toISOString().split('T')[0];
+            }
+            
+            const { error } = await supabase
+                .from('deals')
+                .update(updates)
+                .eq('id', draggedDeal.id);
+                
+            if (error) throw error;
+
+            // Add activity log
+            try {
+                await supabase.from('activities').insert({
+                    organization_id: organization.id, 
+                    deal_id: draggedDeal.id,
+                    activity_type: 'status_change', 
+                    title: `Deal moved to ${stage.name}`
+                });
+            } catch (activityError) {
+                console.log('Could not log activity:', activityError);
+            }
+            
+            await loadData();
+        } catch (error) {
+            console.error('Error updating deal:', error);
+            alert('Error updating deal: ' + error.message);
+        }
         setDraggedDeal(null);
     };
 
-    const getDealsForStage = (stageId) => deals.filter(d => d.stage === stageId);
+    const getDealsForStage = (stageId) => {
+        return deals.filter(d => {
+            // Show deals in the correct stage
+            if (stageId === 'won') {
+                return d.status === 'won' || d.stage === 'won';
+            }
+            if (stageId === 'lost') {
+                return d.status === 'lost' || d.stage === 'lost';
+            }
+            // For other stages, show deals with that stage AND active status
+            return d.stage === stageId && (d.status === 'active' || !d.status);
+        });
+    };
     const getStageTotal = (stageId) => getDealsForStage(stageId).reduce((sum, d) => sum + (d.value || 0), 0);
     const totalValue = deals.reduce((sum, d) => sum + (d.value || 0), 0);
     const weightedValue = deals.reduce((sum, d) => sum + ((d.value || 0) * (d.probability / 100)), 0);
@@ -2873,10 +3000,25 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
 
 const DealDetailModal = ({ deal, customers, onClose, onUpdate }) => {
     const handleMarkWon = async () => {
-        await supabase.from('deals').update({ status: 'won', stage: 'won', actual_close_date: new Date().toISOString().split('T')[0] }).eq('id', deal.id);
-        alert('Deal marked as Won! 🎉');
-        onUpdate();
-        onClose();
+        try {
+            const { error } = await supabase
+                .from('deals')
+                .update({ 
+                    status: 'won', 
+                    stage: 'won', 
+                    actual_close_date: new Date().toISOString().split('T')[0] 
+                })
+                .eq('id', deal.id);
+                
+            if (error) throw error;
+            
+            alert('Deal marked as Won! 🎉');
+            onUpdate(); // This should reload all deals including won ones
+            onClose();
+        } catch (error) {
+            console.error('Error marking deal as won:', error);
+            alert('Error updating deal: ' + error.message);
+        }
     };
 
     return (
@@ -3401,7 +3543,23 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             if (loading) {
                 return (
                     <div className="min-h-screen bg-[#0D0E2E] flex items-center justify-center">
-                        <div className="loading-spinner"></div>
+                        <div className="text-center">
+                            <div className="loading-spinner mx-auto mb-4"></div>
+                            <div className="text-xl text-gray-400 mb-4">Loading your account...</div>
+                            <div style={{color:'#A0A3C4',fontSize:'0.875rem',marginBottom:'1rem'}}>
+                                Taking longer than expected?
+                            </div>
+                            <button onClick={() => {
+                                try { 
+                                    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-'));
+                                    authKeys.forEach(k => localStorage.removeItem(k));
+                                    sessionStorage.clear();
+                                } catch(e) {}
+                                window.location.reload();
+                            }} style={{background:'rgba(160,163,196,0.1)',color:'#A0A3C4',padding:'8px 16px',borderRadius:'6px',border:'1px solid rgba(160,163,196,0.2)',fontSize:'0.875rem',cursor:'pointer'}}>
+                                🔄 Reset App
+                            </button>
+                        </div>
                     </div>
                 );
             }
