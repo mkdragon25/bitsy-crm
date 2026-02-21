@@ -2399,6 +2399,33 @@ const AuthContext = createContext();
             const [selectedJob, setSelectedJob] = useState(null);
             const [filter, setFilter] = useState('all');
 
+            // Add the missing badge helper functions directly inside the component
+            const getStatusBadge = (status) => {
+                const badges = {
+                    new: 'badge-info',
+                    pending: 'badge-warning', 
+                    scheduled: 'badge-info',
+                    in_progress: 'badge-info',
+                    on_hold: 'badge-warning',
+                    completed: 'badge-success',
+                    invoiced: 'badge-info', 
+                    paid: 'badge-success',
+                    cancelled: 'badge-error',
+                    lost: 'badge-error'
+                };
+                return badges[status] || 'badge-warning';
+            };
+
+            const getPriorityBadge = (priority) => {
+                const badges = {
+                    low: 'badge-success',
+                    medium: 'badge-info', 
+                    high: 'badge-warning',
+                    urgent: 'badge-error'
+                };
+                return badges[priority] || 'badge-info';
+            };
+
             // Debug logging
             console.log('JobsView render:', { 
                 jobsCount: jobs?.length || 0, 
