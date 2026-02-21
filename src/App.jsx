@@ -1036,41 +1036,95 @@ const AuthContext = createContext();
             }, [organization]);
 
             const loadData = async () => {
-                // Load customers
-                const { data: customersData } = await supabase
-                    .from('customers')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setCustomers(customersData || []);
+                if (!organization?.id) {
+                    console.log('Skipping loadData - organization not loaded yet');
+                    return;
+                }
+                
+                try {
+                    console.log('Loading data for organization:', organization.id);
+                    
+                    // Load all data in parallel with proper error handling
+                    const [customersRes, jobsRes, teamRes, tasksRes] = await Promise.all([
+                        supabase.from('customers').select('*').eq('organization_id', organization.id),
+                        supabase.from('jobs').select('*').eq('organization_id', organization.id),
+                        supabase.from('team_members').select('*').eq('organization_id', organization.id),
+                        supabase.from('tasks').select('*').eq('organization_id', organization.id),
+                    ]);
+                    
+                    console.log('Raw responses:', {
+                        customersRes: customersRes,
+                        jobsRes: jobsRes,
+                        teamRes: teamRes,
+                        tasksRes: tasksRes
+                    });
+                    
+                    // Check for errors
+                    if (jobsRes.error) {
+                        console.error('Jobs loading error:', jobsRes.error);
+                    }
+                    if (customersRes.error) {
+                        console.error('Customers loading error:', customersRes.error);
+                    }
+                    
+                    const customersData = customersRes.data || [];
+                    const jobsData = jobsRes.data || [];
+                    const teamData = teamRes.data || [];
+                    const tasksData = tasksRes.data || [];
+                    
+                    console.log('Processed data:', {
+                        customers: customersData.length,
+                        jobs: jobsData.length, 
+                        team: teamData.length,
+                        tasks: tasksData.length
+                    });
 
-                // Load jobs
-                const { data: jobsData } = await supabase
-                    .from('jobs')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setJobs(jobsData || []);
+                    setCustomers(customersData);
+                    setJobs(jobsData);
+                    setTeamMembers(teamData);
+                    setTasks(tasksData);
 
-                // Load team members
-                const { data: teamData } = await supabase
-                    .from('team_members')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setTeamMembers(teamData || []);
-
-                // Load tasks for calendar
-                const { data: tasksData } = await supabase
-                    .from('tasks')
-                    .select('*')
-                    .eq('organization_id', organization.id);
-                setTasks(tasksData || []);
-
-                // Calculate stats
-                setStats({
-                    totalCustomers: customersData?.length || 0,
-                    activeJobs: jobsData?.filter(j => j.status !== 'completed').length || 0,
-                    completedJobs: jobsData?.filter(j => j.status === 'completed').length || 0,
-                    revenue: jobsData?.reduce((sum, j) => sum + (j.value || 0), 0) || 0
-                });
+                    // Calculate stats
+                    setStats({
+                        totalCustomers: customersData.length,
+                        activeJobs: jobsData.filter(j => !['completed', 'cancelled', 'lost'].includes(j.status)).length,
+                        completedJobs: jobsData.filter(j => j.status === 'completed').length,
+                        revenue: jobsData.reduce((sum, j) => sum + (j.value || 0), 0)
+                    });
+                    
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    
+                    // Check if it's a "table doesn't exist" error
+                    if (error.message.includes('does not exist') || error.message.includes('relation') || error.message.includes('42P01')) {
+                        console.log('Some tables not created yet - setting empty arrays');
+                        // Set empty arrays so UI doesn't crash
+                        setCustomers([]);
+                        setJobs([]);
+                        setTeamMembers([]);
+                        setTasks([]);
+                        setStats({
+                            totalCustomers: 0,
+                            activeJobs: 0,
+                            completedJobs: 0,
+                            revenue: 0
+                        });
+                        return;
+                    }
+                    
+                    // For other errors, also set safe defaults to prevent crashes
+                    console.error('Unexpected error loading data, using defaults');
+                    setCustomers([]);
+                    setJobs([]);
+                    setTeamMembers([]);
+                    setTasks([]);
+                    setStats({
+                        totalCustomers: 0,
+                        activeJobs: 0,
+                        completedJobs: 0,
+                        revenue: 0
+                    });
+                }
             };
 
             const renderContent = () => {
@@ -2345,7 +2399,22 @@ const AuthContext = createContext();
             const [selectedJob, setSelectedJob] = useState(null);
             const [filter, setFilter] = useState('all');
 
-            const filteredJobs = jobs.filter(job => {
+            // Debug logging
+            console.log('JobsView render:', { 
+                jobsCount: jobs?.length || 0, 
+                customersCount: customers?.length || 0,
+                organizationId: organization?.id,
+                jobsType: typeof jobs,
+                customersType: typeof customers
+            });
+
+            // Safety check for jobs array
+            const safeJobs = Array.isArray(jobs) ? jobs : [];
+            const safeCustomers = Array.isArray(customers) ? customers : [];
+
+            console.log('Safe arrays:', { safeJobs: safeJobs.length, safeCustomers: safeCustomers.length });
+
+            const filteredJobs = safeJobs.filter(job => {
                 if (filter === 'all') return true;
                 return job.status === filter;
             });
@@ -2355,7 +2424,7 @@ const AuthContext = createContext();
             
 
             const getCustomerName = (customerId) => {
-                const customer = customers.find(c => c.id === customerId);
+                const customer = safeCustomers.find(c => c.id === customerId);
                 return customer ? customer.name : 'Unknown';
             };
 
@@ -2377,11 +2446,58 @@ const AuthContext = createContext();
                 );
             }
 
+            // If organization not loaded yet, show loading
+            if (!organization?.id) {
+                return (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                            <div className="loading-spinner mx-auto mb-4"></div>
+                            <div>Loading organization...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // If jobs failed to load or is undefined, show error state
+            if (jobs === undefined || jobs === null) {
+                return (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                            <div className="text-red-400 text-4xl mb-4">⚠️</div>
+                            <div className="text-xl mb-2">Jobs failed to load</div>
+                            <div className="text-gray-400 mb-4">There was an error loading your jobs data</div>
+                            <button onClick={() => window.location.reload()} className="btn-primary">
+                                🔄 Reload Page
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!Array.isArray(jobs)) {
+                console.error('Jobs is not an array:', jobs);
+                return (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                            <div className="text-red-400 text-4xl mb-4">⚠️</div>
+                            <div className="text-xl mb-2">Jobs data error</div>
+                            <div className="text-gray-400 mb-4">Jobs data is not in the expected format</div>
+                            <button onClick={() => window.location.reload()} className="btn-primary">
+                                🔄 Reload Page
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div>
                     <div className="flex justify-between items-center mb-8">
                         <h1 className="heading-font text-4xl font-bold flex items-center gap-3">🔧 Jobs</h1>
-                        <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center gap-2">
+                        <button 
+                            onClick={() => setShowCreateModal(true)} 
+                            className="btn-primary flex items-center gap-2"
+                        >
                             <span>✨</span>
                             Create Job
                         </button>
@@ -3049,8 +3165,18 @@ const TasksView = ({ organization, onUpdate }) => {
     useEffect(() => { loadData(); }, [organization]);
 
     const loadData = async () => {
-        const { data } = await supabase.from('tasks').select('*').eq('organization_id', organization.id).order('due_date', { ascending: true });
-        setTasks(data || []);
+        if (!organization?.id) return;
+        try {
+            const { data } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .order('due_date', { ascending: true });
+            setTasks(data || []);
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+            setTasks([]); // Fallback to empty array
+        }
     };
 
     const filteredTasks = tasks.filter(t => {
