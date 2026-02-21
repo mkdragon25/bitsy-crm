@@ -1011,6 +1011,7 @@ const AuthContext = createContext();
             const [orgLoadFailed, setOrgLoadFailed] = useState(false);
             const [customers, setCustomers] = useState([]);
             const [jobs, setJobs] = useState([]);
+            const [deals, setDeals] = useState([]);
             const [teamMembers, setTeamMembers] = useState([]);
             const [tasks, setTasks] = useState([]);
             const [stats, setStats] = useState({
@@ -1045,9 +1046,10 @@ const AuthContext = createContext();
                     console.log('Loading data for organization:', organization.id);
                     
                     // Load all data in parallel with proper error handling
-                    const [customersRes, jobsRes, teamRes, tasksRes] = await Promise.all([
+                    const [customersRes, jobsRes, dealsRes, teamRes, tasksRes] = await Promise.all([
                         supabase.from('customers').select('*').eq('organization_id', organization.id),
                         supabase.from('jobs').select('*').eq('organization_id', organization.id),
+                        supabase.from('deals').select('*').eq('organization_id', organization.id).not('status', 'eq', 'archived'),
                         supabase.from('team_members').select('*').eq('organization_id', organization.id),
                         supabase.from('tasks').select('*').eq('organization_id', organization.id),
                     ]);
@@ -1055,6 +1057,7 @@ const AuthContext = createContext();
                     console.log('Raw responses:', {
                         customersRes: customersRes,
                         jobsRes: jobsRes,
+                        dealsRes: dealsRes,
                         teamRes: teamRes,
                         tasksRes: tasksRes
                     });
@@ -1066,21 +1069,27 @@ const AuthContext = createContext();
                     if (customersRes.error) {
                         console.error('Customers loading error:', customersRes.error);
                     }
+                    if (dealsRes.error) {
+                        console.error('Deals loading error:', dealsRes.error);
+                    }
                     
                     const customersData = customersRes.data || [];
                     const jobsData = jobsRes.data || [];
+                    const dealsData = dealsRes.data || [];
                     const teamData = teamRes.data || [];
                     const tasksData = tasksRes.data || [];
                     
                     console.log('Processed data:', {
                         customers: customersData.length,
                         jobs: jobsData.length, 
+                        deals: dealsData.length,
                         team: teamData.length,
                         tasks: tasksData.length
                     });
 
                     setCustomers(customersData);
                     setJobs(jobsData);
+                    setDeals(dealsData);
                     setTeamMembers(teamData);
                     setTasks(tasksData);
 
@@ -1101,6 +1110,7 @@ const AuthContext = createContext();
                         // Set empty arrays so UI doesn't crash
                         setCustomers([]);
                         setJobs([]);
+                        setDeals([]);
                         setTeamMembers([]);
                         setTasks([]);
                         setStats({
@@ -1116,6 +1126,7 @@ const AuthContext = createContext();
                     console.error('Unexpected error loading data, using defaults');
                     setCustomers([]);
                     setJobs([]);
+                    setDeals([]);
                     setTeamMembers([]);
                     setTasks([]);
                     setStats({
@@ -1173,7 +1184,7 @@ const AuthContext = createContext();
                     case 'reports':
                         return <ReportsView customers={customers} jobs={jobs} tasks={tasks} />;
                     case 'calendar':
-                        return <CalendarView tasks={tasks} jobs={jobs} onUpdate={loadData} />;
+                        return <CalendarView tasks={tasks} jobs={jobs} deals={deals} onUpdate={loadData} />;
                     case 'settings':
                         return <SettingsView organization={organization} onUpdate={loadData} />;
                     default:
@@ -3870,9 +3881,14 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         // ============================================
         // CALENDAR VIEW
         // ============================================
-        const CalendarView = ({ tasks, jobs, onUpdate }) => {
+        const CalendarView = ({ tasks, jobs, deals, onUpdate }) => {
             const [currentDate, setCurrentDate] = useState(new Date());
             const [selectedDay, setSelectedDay] = useState(null);
+
+            // Safe arrays
+            const safeTasks = tasks || [];
+            const safeJobs = jobs || [];
+            const safeDeals = deals || [];
 
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -3886,9 +3902,31 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
             const getItemsForDay = (day) => {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
-                const dayJobs = jobs.filter(j => j.scheduled_date && j.scheduled_date.startsWith(dateStr));
-                return { tasks: dayTasks, jobs: dayJobs };
+                
+                // Filter tasks by due_date
+                const dayTasks = safeTasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
+                
+                // Filter jobs by scheduled_date
+                const dayJobs = safeJobs.filter(j => j.scheduled_date && j.scheduled_date.startsWith(dateStr));
+                
+                // Filter deals by next_follow_up date (for follow-ups) and created_at for new deals
+                const dayDeals = safeDeals.filter(d => {
+                    // Show deals with follow-up dates
+                    if (d.next_follow_up && d.next_follow_up.startsWith(dateStr)) {
+                        return true;
+                    }
+                    // Show newly created deals on their creation date
+                    if (d.created_at && d.created_at.startsWith(dateStr)) {
+                        return true;
+                    }
+                    // Show deals that were won/lost on this date
+                    if (d.actual_close_date && d.actual_close_date.startsWith(dateStr)) {
+                        return true;
+                    }
+                    return false;
+                });
+                
+                return { tasks: dayTasks, jobs: dayJobs, deals: dayDeals };
             };
 
             const today = new Date();
@@ -3898,7 +3936,13 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
             return (
                 <div>
-                    <h1 className="heading-font text-4xl font-bold mb-8">Calendar</h1>
+                    <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
+                        📅 Calendar
+                        <span className="text-sm bg-gray-700 px-3 py-1 rounded-full">
+                            Tasks • Jobs • Deals
+                        </span>
+                    </h1>
+                </div>
 
                     <div className="glass-card p-6 mb-6">
                         {/* Header */}
@@ -3926,7 +3970,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                             {Array.from({length: daysInMonth}).map((_, i) => {
                                 const day = i + 1;
                                 const items = getItemsForDay(day);
-                                const hasItems = items.tasks.length > 0 || items.jobs.length > 0;
+                                const hasItems = items.tasks.length > 0 || items.jobs.length > 0 || items.deals.length > 0;
                                 const selected = selectedDay === day;
 
                                 return (
@@ -3934,18 +3978,31 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                         key={day}
                                         onClick={() => setSelectedDay(selected ? null : day)}
                                         className={`aspect-square rounded-lg p-1 cursor-pointer flex flex-col items-center transition-all ${
-                                            selected ? 'bg-[#FFD93D]' :
+                                            selected ? 'bg-[#FFD93D] text-black' :
                                             isToday(day) ? 'bg-[#FFD93D]/30 border border-[#FFD93D]' :
                                             hasItems ? 'bg-gray-800 hover:bg-gray-700' :
                                             'hover:bg-gray-800'
                                         }`}
                                     >
-                                        <div className={`text-sm font-medium ${isToday(day) ? 'text-white' : 'text-gray-300'}`}>{day}</div>
+                                        <div className={`text-sm font-medium ${
+                                            selected ? 'text-black' :
+                                            isToday(day) ? 'text-white' : 
+                                            'text-gray-300'
+                                        }`}>{day}</div>
+                                        
+                                        {/* Task indicator */}
                                         {items.tasks.length > 0 && (
                                             <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-0.5"></div>
                                         )}
+                                        
+                                        {/* Jobs indicator */}
                                         {items.jobs.length > 0 && (
                                             <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-0.5"></div>
+                                        )}
+                                        
+                                        {/* Deals indicator */}
+                                        {items.deals.length > 0 && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-0.5"></div>
                                         )}
                                     </div>
                                 );
@@ -3956,6 +4013,7 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                         <div className="flex gap-4 mt-4 text-xs text-gray-400">
                             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-400"></div> Tasks</div>
                             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-400"></div> Jobs</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-400"></div> Deals</div>
                             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#FFD93D]"></div> Today</div>
                         </div>
                     </div>
@@ -3966,9 +4024,11 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                             <h3 className="heading-font text-xl font-bold mb-4">
                                 {monthName} {selectedDay}, {year}
                             </h3>
-                            {selectedItems.tasks.length === 0 && selectedItems.jobs.length === 0 && (
+                            {selectedItems.tasks.length === 0 && selectedItems.jobs.length === 0 && selectedItems.deals.length === 0 && (
                                 <div className="text-gray-400">Nothing scheduled for this day</div>
                             )}
+                            
+                            {/* Tasks Section */}
                             {selectedItems.tasks.length > 0 && (
                                 <div className="mb-4">
                                     <div className="text-sm font-medium text-yellow-400 mb-2">📋 Tasks</div>
@@ -3983,8 +4043,10 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                     </div>
                                 </div>
                             )}
+                            
+                            {/* Jobs Section */}
                             {selectedItems.jobs.length > 0 && (
-                                <div>
+                                <div className="mb-4">
                                     <div className="text-sm font-medium text-green-400 mb-2">🔧 Jobs</div>
                                     <div className="space-y-2">
                                         {selectedItems.jobs.map(job => (
@@ -3992,6 +4054,54 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                                 <div className="flex-1">{job.title}</div>
                                                 <div className="badge badge-info">{job.status}</div>
                                                 {job.value && <div className="text-green-400 font-medium">${job.value}</div>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Deals Section */}
+                            {selectedItems.deals.length > 0 && (
+                                <div className="mb-4">
+                                    <div className="text-sm font-medium text-blue-400 mb-2">💼 Deals</div>
+                                    <div className="space-y-2">
+                                        {selectedItems.deals.map(deal => (
+                                            <div key={deal.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
+                                                <div className="flex-1">
+                                                    <div className="font-medium">{deal.title}</div>
+                                                    <div className="text-xs text-gray-400">
+                                                        {deal.next_follow_up && deal.next_follow_up.startsWith(`${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`) && (
+                                                            <span className="text-yellow-400">📅 Follow-up due</span>
+                                                        )}
+                                                        {deal.created_at && deal.created_at.startsWith(`${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`) && (
+                                                            <span className="text-blue-400">🆕 New deal</span>
+                                                        )}
+                                                        {deal.actual_close_date && deal.actual_close_date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`) && (
+                                                            <span className={deal.status === 'won' ? 'text-green-400' : 'text-red-400'}>
+                                                                {deal.status === 'won' ? '🏆 Won' : '❌ Lost'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className={`badge badge-${
+                                                        deal.status === 'won' ? 'success' : 
+                                                        deal.status === 'lost' ? 'error' : 
+                                                        'info'
+                                                    }`}>
+                                                        {deal.stage || deal.status}
+                                                    </div>
+                                                    {deal.value && (
+                                                        <div className="text-green-400 font-medium text-sm mt-1">
+                                                            ${deal.value.toLocaleString()}
+                                                        </div>
+                                                    )}
+                                                    {deal.probability && deal.status === 'active' && (
+                                                        <div className="text-blue-400 text-xs">
+                                                            {deal.probability}%
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
