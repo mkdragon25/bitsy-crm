@@ -2856,7 +2856,7 @@ const PipelineView = ({ organization, onUpdate }) => {
     };
     const getStageTotal = (stageId) => getDealsForStage(stageId).reduce((sum, d) => sum + (d.value || 0), 0);
     const totalValue = deals.reduce((sum, d) => sum + (d.value || 0), 0);
-    const weightedValue = deals.reduce((sum, d) => sum + ((d.value || 0) * (d.probability / 100)), 0);
+    const weightedValue = deals.reduce((sum, d) => sum + ((d.value || 0) * ((d.probability || 50) / 100)), 0);
 
     return (
         <div>
@@ -3077,14 +3077,31 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4 };
-            await supabase.from('deals').insert({
-                organization_id: organization.id, created_by: user.id, ...formData,
-                value: parseFloat(formData.value) || 0, stage_order: stageOrders[formData.stage] || 0, status: 'active'
-            });
-            alert('Deal created!');
+            const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4, won: 5, lost: 6 };
+            
+            const dealData = {
+                organization_id: organization.id, 
+                created_by: user.id, 
+                title: formData.title,
+                customer_id: formData.customer_id || null,
+                value: parseFloat(formData.value) || 0,
+                probability: parseInt(formData.probability) || 50,
+                stage: formData.stage,
+                stage_order: stageOrders[formData.stage] || 0,
+                next_follow_up: formData.next_follow_up || null,
+                description: formData.description,
+                status: 'active'
+            };
+            
+            console.log('Creating deal with data:', dealData);
+            
+            const { error } = await supabase.from('deals').insert(dealData);
+            if (error) throw error;
+            
+            alert('Deal created! 🎉');
             onSuccess();
         } catch (err) {
+            console.error('Error creating deal:', err);
             alert('Error: ' + err.message);
         } finally {
             setLoading(false);
@@ -3096,17 +3113,80 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
             <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
                 <h2 className="heading-font text-2xl font-bold mb-6 flex items-center gap-2">✨ Create New Deal</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <input type="text" className="input-field" placeholder="Deal Title *" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
+                    <input 
+                        type="text" 
+                        className="input-field" 
+                        placeholder="Deal Title *" 
+                        value={formData.title} 
+                        onChange={(e) => setFormData({...formData, title: e.target.value})} 
+                        required 
+                    />
+                    
                     <div className="grid grid-cols-2 gap-4">
-                        <select className="input-field" value={formData.customer_id} onChange={(e) => setFormData({...formData, customer_id: e.target.value})}>
+                        <select 
+                            className="input-field" 
+                            value={formData.customer_id} 
+                            onChange={(e) => setFormData({...formData, customer_id: e.target.value})}
+                        >
                             <option value="">Select customer...</option>
                             {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input type="number" step="0.01" className="input-field" placeholder="Value ($)" value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} />
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            className="input-field" 
+                            placeholder="Value ($)" 
+                            value={formData.value} 
+                            onChange={(e) => setFormData({...formData, value: e.target.value})} 
+                        />
                     </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <select 
+                            className="input-field" 
+                            value={formData.stage} 
+                            onChange={(e) => setFormData({...formData, stage: e.target.value})}
+                        >
+                            <option value="lead">🔍 Lead</option>
+                            <option value="contacted">📞 Contacted</option>
+                            <option value="qualified">✅ Qualified</option>
+                            <option value="proposal">📋 Proposal</option>
+                            <option value="negotiation">🤝 Negotiation</option>
+                        </select>
+                        <input 
+                            type="number" 
+                            min="0" 
+                            max="100" 
+                            className="input-field" 
+                            placeholder="Probability (%)" 
+                            value={formData.probability} 
+                            onChange={(e) => setFormData({...formData, probability: parseInt(e.target.value) || 50})} 
+                        />
+                    </div>
+                    
+                    <input 
+                        type="date" 
+                        className="input-field" 
+                        placeholder="Next Follow-up Date" 
+                        value={formData.next_follow_up} 
+                        onChange={(e) => setFormData({...formData, next_follow_up: e.target.value})} 
+                    />
+                    
+                    <textarea 
+                        className="input-field" 
+                        rows="3" 
+                        placeholder="Deal description or notes..." 
+                        value={formData.description} 
+                        onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                    />
+                    
                     <div className="flex gap-4">
-                        <button type="submit" className="btn-primary flex-1" disabled={loading}>{loading ? 'Creating...' : 'Create Deal'}</button>
-                        <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+                        <button type="submit" className="btn-primary flex-1" disabled={loading}>
+                            {loading ? 'Creating...' : '✨ Create Deal'}
+                        </button>
+                        <button type="button" onClick={onClose} className="btn-secondary flex-1">
+                            Cancel
+                        </button>
                     </div>
                 </form>
             </div>
@@ -3115,7 +3195,49 @@ const CreateDealModal = ({ organization, customers, onClose, onSuccess }) => {
 };
 
 const DealDetailModal = ({ deal, customers, onClose, onUpdate }) => {
+    const [editing, setEditing] = useState(false);
+    const [formData, setFormData] = useState({
+        title: deal.title || '',
+        customer_id: deal.customer_id || '',
+        value: deal.value || '',
+        probability: deal.probability || 50,
+        stage: deal.stage || 'lead',
+        next_follow_up: deal.next_follow_up || '',
+        description: deal.description || '',
+        lost_reason: deal.lost_reason || ''
+    });
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            const stageOrders = { lead: 0, contacted: 1, qualified: 2, proposal: 3, negotiation: 4, won: 5, lost: 6 };
+            const updates = {
+                ...formData,
+                value: parseFloat(formData.value) || 0,
+                probability: parseInt(formData.probability) || 50,
+                stage_order: stageOrders[formData.stage] || 0
+            };
+            
+            const { error } = await supabase
+                .from('deals')
+                .update(updates)
+                .eq('id', deal.id);
+                
+            if (error) throw error;
+            
+            alert('Deal updated successfully! 🎉');
+            setEditing(false);
+            onUpdate();
+        } catch (error) {
+            console.error('Error updating deal:', error);
+            alert('Error updating deal: ' + error.message);
+        }
+        setLoading(false);
+    };
+
     const handleMarkWon = async () => {
+        setLoading(true);
         try {
             const { error } = await supabase
                 .from('deals')
@@ -3129,26 +3251,230 @@ const DealDetailModal = ({ deal, customers, onClose, onUpdate }) => {
             if (error) throw error;
             
             alert('Deal marked as Won! 🎉');
-            onUpdate(); // This should reload all deals including won ones
+            onUpdate();
             onClose();
         } catch (error) {
             console.error('Error marking deal as won:', error);
             alert('Error updating deal: ' + error.message);
         }
+        setLoading(false);
     };
+
+    const handleMarkLost = async () => {
+        const reason = prompt('Why was this deal lost?', formData.lost_reason || '');
+        if (reason === null) return; // User cancelled
+        
+        setLoading(true);
+        try {
+            const { error } = await supabase
+                .from('deals')
+                .update({ 
+                    status: 'lost', 
+                    stage: 'lost',
+                    lost_reason: reason
+                })
+                .eq('id', deal.id);
+                
+            if (error) throw error;
+            
+            alert('Deal marked as Lost');
+            onUpdate();
+            onClose();
+        } catch (error) {
+            console.error('Error marking deal as lost:', error);
+            alert('Error updating deal: ' + error.message);
+        }
+        setLoading(false);
+    };
+
+    const customer = customers.find(c => c.id === deal.customer_id);
 
     return (
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={onClose}>
-            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"520px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
-                <h2 className="heading-font text-2xl font-bold mb-4">{deal.title}</h2>
-                <div className="space-y-4">
-                    <div className="text-3xl font-bold text-green-400">${(deal.value || 0).toLocaleString()}</div>
-                    <div>Probability: {deal.probability}%</div>
+            <div style={{background:"#1A1B4B",border:"1px solid rgba(255,217,61,0.25)",borderRadius:"16px",padding:"2rem",width:"90%",maxWidth:"600px",maxHeight:"90vh",overflowY:"auto"}} onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-start mb-6">
+                    <h2 className="heading-font text-2xl font-bold">
+                        {editing ? 'Edit Deal' : deal.title}
+                    </h2>
                     <div className="flex gap-2">
-                        <button onClick={handleMarkWon} className="btn-primary flex-1">Mark Won</button>
-                        <button onClick={onClose} className="btn-secondary flex-1">Close</button>
+                        {!editing && (
+                            <button 
+                                onClick={() => setEditing(true)} 
+                                className="btn-secondary text-sm"
+                                disabled={loading}
+                            >
+                                ✏️ Edit
+                            </button>
+                        )}
+                        <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
                     </div>
                 </div>
+
+                {editing ? (
+                    <div className="space-y-4">
+                        <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="Deal Title" 
+                            value={formData.title} 
+                            onChange={(e) => setFormData({...formData, title: e.target.value})} 
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <select 
+                                className="input-field" 
+                                value={formData.customer_id} 
+                                onChange={(e) => setFormData({...formData, customer_id: e.target.value})}
+                            >
+                                <option value="">Select customer...</option>
+                                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                className="input-field" 
+                                placeholder="Value ($)" 
+                                value={formData.value} 
+                                onChange={(e) => setFormData({...formData, value: e.target.value})} 
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <select 
+                                className="input-field" 
+                                value={formData.stage} 
+                                onChange={(e) => setFormData({...formData, stage: e.target.value})}
+                            >
+                                <option value="lead">🔍 Lead</option>
+                                <option value="contacted">📞 Contacted</option>
+                                <option value="qualified">✅ Qualified</option>
+                                <option value="proposal">📋 Proposal</option>
+                                <option value="negotiation">🤝 Negotiation</option>
+                                <option value="won">🏆 Won</option>
+                                <option value="lost">❌ Lost</option>
+                            </select>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    min="0" 
+                                    max="100" 
+                                    className="input-field pr-8" 
+                                    placeholder="Probability" 
+                                    value={formData.probability} 
+                                    onChange={(e) => setFormData({...formData, probability: parseInt(e.target.value) || 50})} 
+                                />
+                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">%</span>
+                            </div>
+                        </div>
+                        
+                        <input 
+                            type="date" 
+                            className="input-field" 
+                            value={formData.next_follow_up} 
+                            onChange={(e) => setFormData({...formData, next_follow_up: e.target.value})} 
+                        />
+                        
+                        <textarea 
+                            className="input-field" 
+                            rows="3" 
+                            placeholder="Deal description..." 
+                            value={formData.description} 
+                            onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                        />
+                        
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={handleSave} 
+                                className="btn-primary flex-1" 
+                                disabled={loading}
+                            >
+                                {loading ? 'Saving...' : '💾 Save Changes'}
+                            </button>
+                            <button 
+                                onClick={() => setEditing(false)} 
+                                className="btn-secondary flex-1"
+                                disabled={loading}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Value</label>
+                                <div className="text-3xl font-bold text-green-400">${(deal.value || 0).toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Probability</label>
+                                <div className="text-3xl font-bold text-blue-400">{deal.probability || 50}%</div>
+                                <div className="mt-2 h-2 bg-gray-700 rounded-full">
+                                    <div 
+                                        className="h-2 bg-blue-400 rounded-full transition-all"
+                                        style={{width: `${deal.probability || 50}%`}}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Customer</label>
+                                <div className="text-lg">{customer?.name || 'No customer'}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Stage</label>
+                                <div className="text-lg">{deal.stage || 'lead'}</div>
+                            </div>
+                        </div>
+                        
+                        {deal.next_follow_up && (
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Next Follow-up</label>
+                                <div className="text-lg">📅 {new Date(deal.next_follow_up).toLocaleDateString()}</div>
+                            </div>
+                        )}
+                        
+                        {deal.description && (
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                                <div className="text-gray-300 bg-gray-800/50 p-3 rounded">{deal.description}</div>
+                            </div>
+                        )}
+                        
+                        {deal.lost_reason && (
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Lost Reason</label>
+                                <div className="text-red-400 bg-red-500/10 p-3 rounded border border-red-500/20">{deal.lost_reason}</div>
+                            </div>
+                        )}
+                        
+                        <div className="flex gap-3 pt-4 border-t border-gray-700">
+                            {deal.status !== 'won' && deal.status !== 'lost' && (
+                                <>
+                                    <button 
+                                        onClick={handleMarkWon} 
+                                        className="btn-primary flex-1" 
+                                        disabled={loading}
+                                    >
+                                        🏆 Mark Won
+                                    </button>
+                                    <button 
+                                        onClick={handleMarkLost} 
+                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex-1 transition-colors" 
+                                        disabled={loading}
+                                    >
+                                        ❌ Mark Lost
+                                    </button>
+                                </>
+                            )}
+                            <button onClick={onClose} className="btn-secondary flex-1">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
