@@ -1185,6 +1185,8 @@ const AuthContext = createContext();
                         return <ReportsView customers={customers} jobs={jobs} tasks={tasks} />;
                     case 'calendar':
                         return <CalendarView tasks={tasks} jobs={jobs} deals={deals} onUpdate={loadData} />;
+                    case 'support':
+                        return <SupportView />;
                     case 'settings':
                         return <SettingsView organization={organization} onUpdate={loadData} />;
                     default:
@@ -1217,6 +1219,7 @@ const AuthContext = createContext();
                                 { id: 'team', label: 'Team', icon: '&#129309;' },
                                 { id: 'reports', label: 'Reports', icon: '&#128202;' },
                                 { id: 'calendar', label: 'Calendar', icon: '&#128197;' },
+                                { id: 'support', label: 'Support', icon: '&#128172;' },
                                 { id: 'settings', label: 'Settings', icon: '&#9881;' }
                             ].map(item => (
                                 <div
@@ -4113,6 +4116,309 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
             );
         };
 
+        // ============================================
+        // SUPPORT VIEW
+        // ============================================
+        const SupportView = () => {
+            const { user } = useAuth();
+            const [formData, setFormData] = useState({
+                name: user?.email?.split('@')[0] || '',
+                email: user?.email || '',
+                subject: '',
+                category: 'general',
+                priority: 'medium',
+                message: ''
+            });
+            const [submitting, setSubmitting] = useState(false);
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setSubmitting(true);
+                
+                try {
+                    // Create mailto link with form data
+                    const subject = `[Bitsy CRM Support] ${formData.category.toUpperCase()}: ${formData.subject}`;
+                    const body = `
+Support Request Details:
+========================
+
+From: ${formData.name} (${formData.email})
+Category: ${formData.category}
+Priority: ${formData.priority}
+Subject: ${formData.subject}
+
+Message:
+--------
+${formData.message}
+
+========================
+User Info: ${user?.email || 'Not logged in'}
+Timestamp: ${new Date().toISOString()}
+                    `.trim();
+
+                    const mailtoLink = `mailto:matt@bitsycrm.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    
+                    // Open default email client
+                    window.location.href = mailtoLink;
+                    
+                    setSubmitted(true);
+                    
+                    // Reset form after 3 seconds
+                    setTimeout(() => {
+                        setSubmitted(false);
+                        setFormData({
+                            name: user?.email?.split('@')[0] || '',
+                            email: user?.email || '',
+                            subject: '',
+                            category: 'general',
+                            priority: 'medium',
+                            message: ''
+                        });
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('Error submitting support request:', error);
+                    alert('Error opening email client. Please email matt@bitsycrm.com directly.');
+                }
+                
+                setSubmitting(false);
+            };
+
+            const handleInputChange = (e) => {
+                setFormData({
+                    ...formData,
+                    [e.target.name]: e.target.value
+                });
+            };
+
+            if (submitted) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="text-center max-w-md">
+                            <div className="text-6xl mb-6">✅</div>
+                            <h2 className="text-3xl font-bold mb-4 text-green-400">Support Request Sent!</h2>
+                            <p className="text-gray-400 mb-6">
+                                Your email client should have opened with your support request. 
+                                If it didn't, please email <strong>matt@bitsycrm.com</strong> directly.
+                            </p>
+                            <p className="text-sm text-gray-500">
+                                We'll get back to you within 24 hours!
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="max-w-4xl mx-auto">
+                    <div className="mb-8">
+                        <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
+                            💬 Support Center
+                        </h1>
+                        <p className="text-gray-400 text-lg">
+                            Need help? We're here for you! Send us a message and we'll respond within 24 hours.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Contact Form */}
+                        <div className="lg:col-span-2">
+                            <div className="glass-card p-6">
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                                    📧 Contact Form
+                                </h2>
+                                
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    {/* Name and Email */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Name *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                value={formData.name}
+                                                onChange={handleInputChange}
+                                                className="input-field"
+                                                required
+                                                placeholder="Your name"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Email *
+                                            </label>
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                value={formData.email}
+                                                onChange={handleInputChange}
+                                                className="input-field"
+                                                required
+                                                placeholder="your@email.com"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Category and Priority */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Category *
+                                            </label>
+                                            <select
+                                                name="category"
+                                                value={formData.category}
+                                                onChange={handleInputChange}
+                                                className="input-field"
+                                                required
+                                            >
+                                                <option value="general">General Question</option>
+                                                <option value="bug">Bug Report</option>
+                                                <option value="feature">Feature Request</option>
+                                                <option value="billing">Billing & Account</option>
+                                                <option value="technical">Technical Issue</option>
+                                                <option value="training">Training & How-To</option>
+                                                <option value="integration">Integration Help</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Priority
+                                            </label>
+                                            <select
+                                                name="priority"
+                                                value={formData.priority}
+                                                onChange={handleInputChange}
+                                                className="input-field"
+                                            >
+                                                <option value="low">Low - General inquiry</option>
+                                                <option value="medium">Medium - Normal issue</option>
+                                                <option value="high">High - Business impacting</option>
+                                                <option value="urgent">Urgent - System down</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Subject */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Subject *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="subject"
+                                            value={formData.subject}
+                                            onChange={handleInputChange}
+                                            className="input-field"
+                                            required
+                                            placeholder="Brief description of your issue"
+                                        />
+                                    </div>
+
+                                    {/* Message */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Message *
+                                        </label>
+                                        <textarea
+                                            name="message"
+                                            value={formData.message}
+                                            onChange={handleInputChange}
+                                            rows="6"
+                                            className="input-field"
+                                            required
+                                            placeholder="Please describe your issue in detail. Include steps to reproduce if it's a bug."
+                                        />
+                                    </div>
+
+                                    {/* Submit Button */}
+                                    <button
+                                        type="submit"
+                                        disabled={submitting}
+                                        className="btn-primary w-full flex items-center justify-center gap-2"
+                                    >
+                                        {submitting ? (
+                                            <>⏳ Submitting...</>
+                                        ) : (
+                                            <>📧 Send Support Request</>
+                                        )}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* Support Info Sidebar */}
+                        <div className="space-y-6">
+                            {/* Contact Info */}
+                            <div className="glass-card p-6">
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    📞 Contact Info
+                                </h3>
+                                <div className="space-y-3 text-sm">
+                                    <div>
+                                        <strong>Email:</strong><br/>
+                                        <a href="mailto:matt@bitsycrm.com" className="text-blue-400 hover:text-blue-300">
+                                            matt@bitsycrm.com
+                                        </a>
+                                    </div>
+                                    <div>
+                                        <strong>Response Time:</strong><br/>
+                                        Within 24 hours
+                                    </div>
+                                    <div>
+                                        <strong>Support Hours:</strong><br/>
+                                        Monday - Friday<br/>
+                                        9 AM - 6 PM EST
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Help */}
+                            <div className="glass-card p-6">
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    🚀 Quick Help
+                                </h3>
+                                <div className="space-y-3 text-sm">
+                                    <div>
+                                        <strong>🔧 Common Issues:</strong>
+                                        <ul className="mt-1 text-gray-400">
+                                            <li>• Login/password problems</li>
+                                            <li>• Data import questions</li>
+                                            <li>• Team member setup</li>
+                                            <li>• Billing questions</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <strong>💡 Before Contacting:</strong>
+                                        <ul className="mt-1 text-gray-400">
+                                            <li>• Try refreshing your browser</li>
+                                            <li>• Check your internet connection</li>
+                                            <li>• Note any error messages</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Feature Requests */}
+                            <div className="glass-card p-6">
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    ✨ Feature Requests
+                                </h3>
+                                <p className="text-sm text-gray-400 mb-3">
+                                    Have an idea to make Bitsy CRM better? We love hearing from our users!
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                    Use the form with "Feature Request" category to suggest improvements.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         const AppInner = () => {
             const { user, isSuperAdmin, loading } = useAuth();
