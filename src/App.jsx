@@ -1341,7 +1341,7 @@ const AuthContext = createContext();
                                     <span className="text-xl">👤</span>
                                     <div className="text-left">
                                         <div className="font-medium">Add Customer</div>
-                                        <div className="text-xs text-gray-300">Create a new customer record</div>
+                                        <div className="text-xs text-white">Create a new customer record</div>
                                     </div>
                                 </button>
                                 
@@ -1352,7 +1352,7 @@ const AuthContext = createContext();
                                     <span className="text-xl">🔧</span>
                                     <div className="text-left">
                                         <div className="font-medium">Create Job</div>
-                                        <div className="text-xs text-gray-300">Start a new project or task</div>
+                                        <div className="text-xs text-white">Start a new project or task</div>
                                     </div>
                                 </button>
                                 
@@ -1363,7 +1363,7 @@ const AuthContext = createContext();
                                     <span className="text-xl">💼</span>
                                     <div className="text-left">
                                         <div className="font-medium">View Pipeline</div>
-                                        <div className="text-xs text-gray-300">Manage your sales deals</div>
+                                        <div className="text-xs text-white">Manage your sales deals</div>
                                     </div>
                                 </button>
                             </div>
@@ -1386,7 +1386,7 @@ const AuthContext = createContext();
                                     <span className="text-xl">📧</span>
                                     <div className="text-left">
                                         <div className="font-medium">Contact Support</div>
-                                        <div className="text-xs text-gray-300">9 AM - 9 PM MST • 24hr response</div>
+                                        <div className="text-xs text-white">9 AM - 9 PM MST • 24hr response</div>
                                     </div>
                                 </button>
                             </div>
