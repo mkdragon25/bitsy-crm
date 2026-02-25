@@ -3939,13 +3939,14 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
 
             return (
                 <div>
-                    <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
-                        📅 Calendar
-                        <span className="text-sm bg-gray-700 px-3 py-1 rounded-full">
-                            Tasks • Jobs • Deals
-                        </span>
-                    </h1>
-                </div>
+                    <div className="mb-8">
+                        <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
+                            📅 Calendar
+                            <span className="text-sm bg-gray-700 px-3 py-1 rounded-full">
+                                Tasks • Jobs • Deals
+                            </span>
+                        </h1>
+                    </div>
 
                     <div className="glass-card p-6 mb-6">
                         {/* Header */}
