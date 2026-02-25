@@ -228,7 +228,7 @@ const AuthContext = createContext();
         const useAuth = () => useContext(AuthContext);
 
         // Landing Page
-        const LandingPage = () => {
+        const LandingPage = ({ onShowSupport }) => {
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [authMode, setAuthMode] = useState('signin');
 
@@ -241,6 +241,12 @@ const AuthContext = createContext();
                                 Bitsy<span className="text-[#FFD93D]">CRM</span>
                             </div>
                             <div className="flex gap-4">
+                                <button 
+                                    onClick={onShowSupport}
+                                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+                                >
+                                    💬 Support
+                                </button>
                                 <button 
                                     onClick={() => { setAuthMode('signin'); setShowAuthModal(true); }}
                                     className="btn-secondary"
@@ -412,6 +418,23 @@ const AuthContext = createContext();
                             <p className="heading-font text-2xl font-bold mb-4">
                                 Bitsy<span className="text-[#FFD93D]">CRM</span>
                             </p>
+                            <div className="flex justify-center gap-6 mb-4">
+                                <button 
+                                    onClick={onShowSupport}
+                                    className="text-gray-400 hover:text-blue-400 transition-colors"
+                                >
+                                    💬 Contact Support
+                                </button>
+                                <span className="text-gray-600">•</span>
+                                <span className="text-gray-400">Support Hours: 9 AM - 9 PM MST</span>
+                                <span className="text-gray-600">•</span>
+                                <a 
+                                    href="mailto:matt@bitsycrm.com" 
+                                    className="text-gray-400 hover:text-blue-400 transition-colors"
+                                >
+                                    matt@bitsycrm.com
+                                </a>
+                            </div>
                             <p>&copy; 2026 BitsyCRM. All rights reserved.</p>
                         </div>
                     </footer>
@@ -1301,14 +1324,138 @@ const AuthContext = createContext();
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        {/* Welcome & Quick Actions */}
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                🚀 Quick Actions
+                            </h2>
+                            <p className="text-gray-400 mb-6">
+                                Get started with the most common tasks in Bitsy CRM.
+                            </p>
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={() => setActiveTab('customers')} 
+                                    className="w-full btn-primary flex items-center gap-3 justify-start"
+                                >
+                                    <span className="text-xl">👤</span>
+                                    <div className="text-left">
+                                        <div className="font-medium">Add Customer</div>
+                                        <div className="text-xs text-gray-300">Create a new customer record</div>
+                                    </div>
+                                </button>
+                                
+                                <button 
+                                    onClick={() => setActiveTab('jobs')} 
+                                    className="w-full btn-secondary flex items-center gap-3 justify-start"
+                                >
+                                    <span className="text-xl">🔧</span>
+                                    <div className="text-left">
+                                        <div className="font-medium">Create Job</div>
+                                        <div className="text-xs text-gray-300">Start a new project or task</div>
+                                    </div>
+                                </button>
+                                
+                                <button 
+                                    onClick={() => setActiveTab('pipeline')} 
+                                    className="w-full btn-secondary flex items-center gap-3 justify-start"
+                                >
+                                    <span className="text-xl">💼</span>
+                                    <div className="text-left">
+                                        <div className="font-medium">View Pipeline</div>
+                                        <div className="text-xs text-gray-300">Manage your sales deals</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Support & Help */}
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                💬 Need Help?
+                            </h2>
+                            <p className="text-gray-400 mb-6">
+                                Get support, report issues, or request new features.
+                            </p>
+                            
+                            <div className="space-y-3 mb-6">
+                                <button 
+                                    onClick={() => setActiveTab('support')} 
+                                    className="w-full btn-primary flex items-center gap-3 justify-start bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <span className="text-xl">📧</span>
+                                    <div className="text-left">
+                                        <div className="font-medium">Contact Support</div>
+                                        <div className="text-xs text-gray-300">9 AM - 9 PM MST • 24hr response</div>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <div className="border-t border-gray-700 pt-4">
+                                <h3 className="font-medium mb-3 flex items-center gap-2">
+                                    🎯 Getting Started
+                                </h3>
+                                <div className="space-y-2 text-sm text-gray-400">
+                                    <div className="flex items-start gap-2">
+                                        <span>1.</span>
+                                        <span>Add your first customer using the button above</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span>2.</span>
+                                        <span>Create jobs to track your projects</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span>3.</span>
+                                        <span>Use the pipeline to manage sales opportunities</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span>4.</span>
+                                        <span>Invite team members to collaborate</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Navigation Cards */}
                     <div className="glass-card p-6">
-                        <h2 className="text-xl font-bold mb-4">Welcome to Bitsy CRM</h2>
-                        <p className="text-gray-400 mb-4">
-                            Get started by adding your first customer or creating a job. Use the navigation on the left to explore all features.
-                        </p>
-                        <div className="flex gap-4">
-                            <button onClick={() => setActiveTab('customers')} className="btn-primary">Add Customer</button>
-                            <button onClick={() => setActiveTab('jobs')} className="btn-secondary">Create Job</button>
+                        <h2 className="text-xl font-bold mb-4">Explore Bitsy CRM</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button 
+                                onClick={() => setActiveTab('calendar')} 
+                                className="p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors text-left"
+                            >
+                                <div className="text-2xl mb-2">📅</div>
+                                <div className="font-medium text-sm">Calendar</div>
+                                <div className="text-xs text-gray-400">View all activities</div>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('tasks')} 
+                                className="p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors text-left"
+                            >
+                                <div className="text-2xl mb-2">✅</div>
+                                <div className="font-medium text-sm">Tasks</div>
+                                <div className="text-xs text-gray-400">Manage to-dos</div>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('reports')} 
+                                className="p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors text-left"
+                            >
+                                <div className="text-2xl mb-2">📊</div>
+                                <div className="font-medium text-sm">Reports</div>
+                                <div className="text-xs text-gray-400">Business insights</div>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('team')} 
+                                className="p-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors text-left"
+                            >
+                                <div className="text-2xl mb-2">👥</div>
+                                <div className="font-medium text-sm">Team</div>
+                                <div className="text-xs text-gray-400">Manage users</div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -4118,6 +4265,334 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         };
 
         // ============================================
+        // PUBLIC SUPPORT VIEW (NO AUTHENTICATION REQUIRED)
+        // ============================================
+        const PublicSupportView = ({ onBackToLogin }) => {
+            const [formData, setFormData] = useState({
+                name: '',
+                email: '',
+                subject: '',
+                category: 'general',
+                priority: 'medium',
+                message: ''
+            });
+            const [submitting, setSubmitting] = useState(false);
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setSubmitting(true);
+                
+                try {
+                    // Create mailto link with form data
+                    const subject = `[Bitsy CRM Support] ${formData.category.toUpperCase()}: ${formData.subject}`;
+                    const body = `
+Support Request Details:
+========================
+
+From: ${formData.name} (${formData.email})
+Category: ${formData.category}
+Priority: ${formData.priority}
+Subject: ${formData.subject}
+
+Message:
+--------
+${formData.message}
+
+========================
+User Type: Public (Not logged in)
+Timestamp: ${new Date().toISOString()}
+                    `.trim();
+
+                    const mailtoLink = `mailto:matt@bitsycrm.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    
+                    // Open default email client
+                    window.location.href = mailtoLink;
+                    
+                    setSubmitted(true);
+                    
+                    // Reset form after 5 seconds for public users
+                    setTimeout(() => {
+                        setSubmitted(false);
+                        setFormData({
+                            name: '',
+                            email: '',
+                            subject: '',
+                            category: 'general',
+                            priority: 'medium',
+                            message: ''
+                        });
+                    }, 5000);
+                    
+                } catch (error) {
+                    console.error('Error submitting support request:', error);
+                    alert('Error opening email client. Please email matt@bitsycrm.com directly.');
+                }
+                
+                setSubmitting(false);
+            };
+
+            const handleInputChange = (e) => {
+                setFormData({
+                    ...formData,
+                    [e.target.name]: e.target.value
+                });
+            };
+
+            if (submitted) {
+                return (
+                    <div className="min-h-screen bg-[#0D0E2E] text-white flex items-center justify-center p-4">
+                        <div className="text-center max-w-md">
+                            <div className="text-6xl mb-6">✅</div>
+                            <h2 className="text-3xl font-bold mb-4 text-green-400">Support Request Sent!</h2>
+                            <p className="text-gray-400 mb-6">
+                                Your email client should have opened with your support request. 
+                                If it didn't, please email <strong className="text-white">matt@bitsycrm.com</strong> directly.
+                            </p>
+                            <p className="text-sm text-gray-500 mb-6">
+                                We'll get back to you within 24 hours during business hours (9 AM - 9 PM MST)!
+                            </p>
+                            <button onClick={onBackToLogin} className="btn-primary">
+                                ← Back to Login
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-[#0D0E2E] text-white">
+                    {/* Header */}
+                    <div className="bg-[#1A1B4B] border-b border-gray-800">
+                        <div className="max-w-6xl mx-auto px-4 py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="heading-font text-2xl font-bold">
+                                    Bitsy<span className="text-[#FFD93D]">CRM</span>
+                                </div>
+                                <button onClick={onBackToLogin} className="btn-secondary">
+                                    ← Back to Login
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-4xl mx-auto p-6">
+                        <div className="mb-8">
+                            <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
+                                💬 Support Center
+                            </h1>
+                            <p className="text-gray-400 text-lg">
+                                Need help with Bitsy CRM? Send us a message and we'll respond within 24 hours.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Contact Form */}
+                            <div className="lg:col-span-2">
+                                <div className="glass-card p-6">
+                                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                                        📧 Contact Form
+                                    </h2>
+                                    
+                                    <form onSubmit={handleSubmit} className="space-y-6">
+                                        {/* Name and Email */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Name *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="name"
+                                                    value={formData.name}
+                                                    onChange={handleInputChange}
+                                                    className="input-field"
+                                                    required
+                                                    placeholder="Your name"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Email *
+                                                </label>
+                                                <input
+                                                    type="email"
+                                                    name="email"
+                                                    value={formData.email}
+                                                    onChange={handleInputChange}
+                                                    className="input-field"
+                                                    required
+                                                    placeholder="your@email.com"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Category and Priority */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Category *
+                                                </label>
+                                                <select
+                                                    name="category"
+                                                    value={formData.category}
+                                                    onChange={handleInputChange}
+                                                    className="input-field"
+                                                    required
+                                                >
+                                                    <option value="general">General Question</option>
+                                                    <option value="sales">Sales Inquiry</option>
+                                                    <option value="demo">Request Demo</option>
+                                                    <option value="pricing">Pricing Question</option>
+                                                    <option value="technical">Technical Issue</option>
+                                                    <option value="feature">Feature Request</option>
+                                                    <option value="billing">Billing Question</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Priority
+                                                </label>
+                                                <select
+                                                    name="priority"
+                                                    value={formData.priority}
+                                                    onChange={handleInputChange}
+                                                    className="input-field"
+                                                >
+                                                    <option value="low">Low - General inquiry</option>
+                                                    <option value="medium">Medium - Normal question</option>
+                                                    <option value="high">High - Important</option>
+                                                    <option value="urgent">Urgent - Need quick response</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Subject */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Subject *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="subject"
+                                                value={formData.subject}
+                                                onChange={handleInputChange}
+                                                className="input-field"
+                                                required
+                                                placeholder="Brief description of your question"
+                                            />
+                                        </div>
+
+                                        {/* Message */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Message *
+                                            </label>
+                                            <textarea
+                                                name="message"
+                                                value={formData.message}
+                                                onChange={handleInputChange}
+                                                rows="6"
+                                                className="input-field"
+                                                required
+                                                placeholder="Please describe your question or issue in detail..."
+                                            />
+                                        </div>
+
+                                        {/* Submit Button */}
+                                        <button
+                                            type="submit"
+                                            disabled={submitting}
+                                            className="btn-primary w-full flex items-center justify-center gap-2"
+                                        >
+                                            {submitting ? (
+                                                <>⏳ Submitting...</>
+                                            ) : (
+                                                <>📧 Send Message</>
+                                            )}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            {/* Support Info Sidebar */}
+                            <div className="space-y-6">
+                                {/* Contact Info */}
+                                <div className="glass-card p-6">
+                                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                        📞 Contact Info
+                                    </h3>
+                                    <div className="space-y-3 text-sm">
+                                        <div>
+                                            <strong>Email:</strong><br/>
+                                            <a href="mailto:matt@bitsycrm.com" className="text-blue-400 hover:text-blue-300">
+                                                matt@bitsycrm.com
+                                            </a>
+                                        </div>
+                                        <div>
+                                            <strong>Response Time:</strong><br/>
+                                            Within 24 hours
+                                        </div>
+                                        <div>
+                                            <strong>Support Hours:</strong><br/>
+                                            Monday - Friday<br/>
+                                            9 AM - 9 PM MST
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Get Started */}
+                                <div className="glass-card p-6">
+                                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                        🚀 New to Bitsy CRM?
+                                    </h3>
+                                    <div className="space-y-3 text-sm">
+                                        <div>
+                                            <strong>💡 What we offer:</strong>
+                                            <ul className="mt-1 text-gray-400">
+                                                <li>• Simple CRM for small businesses</li>
+                                                <li>• $27/month per user</li>
+                                                <li>• Customer & job management</li>
+                                                <li>• Sales pipeline tracking</li>
+                                                <li>• Team collaboration tools</li>
+                                            </ul>
+                                        </div>
+                                        <div className="pt-3 border-t border-gray-700">
+                                            <button onClick={onBackToLogin} className="btn-primary w-full">
+                                                Try Bitsy CRM Free
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Common Questions */}
+                                <div className="glass-card p-6">
+                                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                        ❓ Common Questions
+                                    </h3>
+                                    <div className="space-y-3 text-sm text-gray-400">
+                                        <div>
+                                            <strong className="text-white">How much does it cost?</strong><br/>
+                                            $27/month per user - much cheaper than big CRM platforms.
+                                        </div>
+                                        <div>
+                                            <strong className="text-white">Is there a free trial?</strong><br/>
+                                            Yes! Sign up to try all features free.
+                                        </div>
+                                        <div>
+                                            <strong className="text-white">What businesses use Bitsy CRM?</strong><br/>
+                                            Service businesses, contractors, consultants, agencies.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ============================================
         // SUPPORT VIEW
         // ============================================
         const SupportView = () => {
@@ -4372,7 +4847,7 @@ Timestamp: ${new Date().toISOString()}
                                     <div>
                                         <strong>Support Hours:</strong><br/>
                                         Monday - Friday<br/>
-                                        9 AM - 6 PM EST
+                                        9 AM - 9 PM MST
                                     </div>
                                 </div>
                             </div>
@@ -4424,10 +4899,12 @@ Timestamp: ${new Date().toISOString()}
         const AppInner = () => {
             const { user, isSuperAdmin, loading } = useAuth();
             const [isAdminRoute, setIsAdminRoute] = useState(false);
+            const [showPublicSupport, setShowPublicSupport] = useState(false);
 
             useEffect(() => {
                 const checkHash = () => {
                     setIsAdminRoute(window.location.hash === '#superadmin');
+                    setShowPublicSupport(window.location.hash === '#support');
                 };
                 
                 checkHash();
@@ -4460,11 +4937,22 @@ Timestamp: ${new Date().toISOString()}
                 );
             }
 
+            // Show public support page if hash is #support and user is not logged in
+            if (showPublicSupport && !user) {
+                return <PublicSupportView onBackToLogin={() => {
+                    setShowPublicSupport(false);
+                    window.location.hash = '';
+                }} />;
+            }
+
             if (isAdminRoute && user && isSuperAdmin) {
                 return <SuperAdminDashboard />;
             }
 
-            return user ? <Dashboard /> : <LandingPage />;
+            return user ? <Dashboard /> : <LandingPage onShowSupport={() => {
+                setShowPublicSupport(true);
+                window.location.hash = '#support';
+            }} />;
         };
 
         const App = () => {
