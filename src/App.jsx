@@ -4265,100 +4265,12 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
         };
 
         // ============================================
-        // PUBLIC SUPPORT VIEW (NO AUTHENTICATION REQUIRED)
+        // PUBLIC SUPPORT VIEW (GOOGLE FORMS INTEGRATION)
         // ============================================
         const PublicSupportView = ({ onBackToLogin }) => {
-            const [formData, setFormData] = useState({
-                name: '',
-                email: '',
-                subject: '',
-                category: 'general',
-                priority: 'medium',
-                message: ''
-            });
-            const [submitting, setSubmitting] = useState(false);
-            const [submitted, setSubmitted] = useState(false);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                setSubmitting(true);
-                
-                try {
-                    // Create mailto link with form data
-                    const subject = `[Bitsy CRM Support] ${formData.category.toUpperCase()}: ${formData.subject}`;
-                    const body = `
-Support Request Details:
-========================
-
-From: ${formData.name} (${formData.email})
-Category: ${formData.category}
-Priority: ${formData.priority}
-Subject: ${formData.subject}
-
-Message:
---------
-${formData.message}
-
-========================
-User Type: Public (Not logged in)
-Timestamp: ${new Date().toISOString()}
-                    `.trim();
-
-                    const mailtoLink = `mailto:matt@bitsycrm.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                    
-                    // Open default email client
-                    window.location.href = mailtoLink;
-                    
-                    setSubmitted(true);
-                    
-                    // Reset form after 5 seconds for public users
-                    setTimeout(() => {
-                        setSubmitted(false);
-                        setFormData({
-                            name: '',
-                            email: '',
-                            subject: '',
-                            category: 'general',
-                            priority: 'medium',
-                            message: ''
-                        });
-                    }, 5000);
-                    
-                } catch (error) {
-                    console.error('Error submitting support request:', error);
-                    alert('Error opening email client. Please email matt@bitsycrm.com directly.');
-                }
-                
-                setSubmitting(false);
-            };
-
-            const handleInputChange = (e) => {
-                setFormData({
-                    ...formData,
-                    [e.target.name]: e.target.value
-                });
-            };
-
-            if (submitted) {
-                return (
-                    <div className="min-h-screen bg-[#0D0E2E] text-white flex items-center justify-center p-4">
-                        <div className="text-center max-w-md">
-                            <div className="text-6xl mb-6">✅</div>
-                            <h2 className="text-3xl font-bold mb-4 text-green-400">Support Request Sent!</h2>
-                            <p className="text-gray-400 mb-6">
-                                Your email client should have opened with your support request. 
-                                If it didn't, please email <strong className="text-white">matt@bitsycrm.com</strong> directly.
-                            </p>
-                            <p className="text-sm text-gray-500 mb-6">
-                                We'll get back to you within 24 hours during business hours (9 AM - 9 PM MST)!
-                            </p>
-                            <button onClick={onBackToLogin} className="btn-primary">
-                                ← Back to Login
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
+            // Real Google Form URL
+            const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScPcLMqTqrqDx2Y4skIkjKFuIqWylZOaqhocIprI6yjeKn-cg/viewform";
+            const GOOGLE_FORM_EMBEDDED = "https://docs.google.com/forms/d/e/1FAIpQLScPcLMqTqrqDx2Y4skIkjKFuIqWylZOaqhocIprI6yjeKn-cg/viewform?embedded=true";
 
             return (
                 <div className="min-h-screen bg-[#0D0E2E] text-white">
@@ -4376,7 +4288,7 @@ Timestamp: ${new Date().toISOString()}
                         </div>
                     </div>
 
-                    <div className="max-w-4xl mx-auto p-6">
+                    <div className="max-w-6xl mx-auto p-6">
                         <div className="mb-8">
                             <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
                                 💬 Support Center
@@ -4386,132 +4298,50 @@ Timestamp: ${new Date().toISOString()}
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Contact Form */}
-                            <div className="lg:col-span-2">
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                            {/* Main Form Area */}
+                            <div className="lg:col-span-3">
                                 <div className="glass-card p-6">
                                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                                        📧 Contact Form
+                                        📋 Support Request Form
                                     </h2>
                                     
-                                    <form onSubmit={handleSubmit} className="space-y-6">
-                                        {/* Name and Email */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Name *
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    name="name"
-                                                    value={formData.name}
-                                                    onChange={handleInputChange}
-                                                    className="input-field"
-                                                    required
-                                                    placeholder="Your name"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Email *
-                                                </label>
-                                                <input
-                                                    type="email"
-                                                    name="email"
-                                                    value={formData.email}
-                                                    onChange={handleInputChange}
-                                                    className="input-field"
-                                                    required
-                                                    placeholder="your@email.com"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Category and Priority */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Category *
-                                                </label>
-                                                <select
-                                                    name="category"
-                                                    value={formData.category}
-                                                    onChange={handleInputChange}
-                                                    className="input-field"
-                                                    required
-                                                >
-                                                    <option value="general">General Question</option>
-                                                    <option value="sales">Sales Inquiry</option>
-                                                    <option value="demo">Request Demo</option>
-                                                    <option value="pricing">Pricing Question</option>
-                                                    <option value="technical">Technical Issue</option>
-                                                    <option value="feature">Feature Request</option>
-                                                    <option value="billing">Billing Question</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Priority
-                                                </label>
-                                                <select
-                                                    name="priority"
-                                                    value={formData.priority}
-                                                    onChange={handleInputChange}
-                                                    className="input-field"
-                                                >
-                                                    <option value="low">Low - General inquiry</option>
-                                                    <option value="medium">Medium - Normal question</option>
-                                                    <option value="high">High - Important</option>
-                                                    <option value="urgent">Urgent - Need quick response</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {/* Subject */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Subject *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                name="subject"
-                                                value={formData.subject}
-                                                onChange={handleInputChange}
-                                                className="input-field"
-                                                required
-                                                placeholder="Brief description of your question"
-                                            />
-                                        </div>
-
-                                        {/* Message */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Message *
-                                            </label>
-                                            <textarea
-                                                name="message"
-                                                value={formData.message}
-                                                onChange={handleInputChange}
-                                                rows="6"
-                                                className="input-field"
-                                                required
-                                                placeholder="Please describe your question or issue in detail..."
-                                            />
-                                        </div>
-
-                                        {/* Submit Button */}
-                                        <button
-                                            type="submit"
-                                            disabled={submitting}
-                                            className="btn-primary w-full flex items-center justify-center gap-2"
+                                    {/* Embedded Google Form */}
+                                    <div className="relative">
+                                        <iframe 
+                                            src={GOOGLE_FORM_EMBEDDED}
+                                            width="100%" 
+                                            height="800" 
+                                            frameBorder="0" 
+                                            marginHeight="0" 
+                                            marginWidth="0"
+                                            className="rounded-lg bg-white"
+                                            title="Bitsy CRM Support Form"
                                         >
-                                            {submitting ? (
-                                                <>⏳ Submitting...</>
-                                            ) : (
-                                                <>📧 Send Message</>
-                                            )}
-                                        </button>
-                                    </form>
+                                            Loading support form...
+                                        </iframe>
+                                    </div>
+                                    
+                                    <div className="mt-6 p-4 bg-gray-800/50 rounded-lg">
+                                        <h3 className="font-bold mb-2">📧 Alternative Contact Methods:</h3>
+                                        <div className="space-y-2 text-sm text-gray-300">
+                                            <p>
+                                                <strong>Direct Email:</strong>{' '}
+                                                <a href="mailto:matt@bitsycrm.com" className="text-blue-400 hover:text-blue-300">
+                                                    matt@bitsycrm.com
+                                                </a>
+                                            </p>
+                                            <p>
+                                                <strong>Can't see the form?</strong>{' '}
+                                                <button 
+                                                    onClick={() => window.open(GOOGLE_FORM_URL, '_blank')}
+                                                    className="text-blue-400 hover:text-blue-300 underline"
+                                                >
+                                                    Open in new window
+                                                </button>
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4595,99 +4425,18 @@ Timestamp: ${new Date().toISOString()}
         // ============================================
         // SUPPORT VIEW
         // ============================================
+        // ============================================
+        // SUPPORT VIEW (GOOGLE FORMS INTEGRATION)
+        // ============================================
         const SupportView = () => {
             const { user } = useAuth();
-            const [formData, setFormData] = useState({
-                name: user?.email?.split('@')[0] || '',
-                email: user?.email || '',
-                subject: '',
-                category: 'general',
-                priority: 'medium',
-                message: ''
-            });
-            const [submitting, setSubmitting] = useState(false);
-            const [submitted, setSubmitted] = useState(false);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                setSubmitting(true);
-                
-                try {
-                    // Create mailto link with form data
-                    const subject = `[Bitsy CRM Support] ${formData.category.toUpperCase()}: ${formData.subject}`;
-                    const body = `
-Support Request Details:
-========================
-
-From: ${formData.name} (${formData.email})
-Category: ${formData.category}
-Priority: ${formData.priority}
-Subject: ${formData.subject}
-
-Message:
---------
-${formData.message}
-
-========================
-User Info: ${user?.email || 'Not logged in'}
-Timestamp: ${new Date().toISOString()}
-                    `.trim();
-
-                    const mailtoLink = `mailto:matt@bitsycrm.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                    
-                    // Open default email client
-                    window.location.href = mailtoLink;
-                    
-                    setSubmitted(true);
-                    
-                    // Reset form after 3 seconds
-                    setTimeout(() => {
-                        setSubmitted(false);
-                        setFormData({
-                            name: user?.email?.split('@')[0] || '',
-                            email: user?.email || '',
-                            subject: '',
-                            category: 'general',
-                            priority: 'medium',
-                            message: ''
-                        });
-                    }, 3000);
-                    
-                } catch (error) {
-                    console.error('Error submitting support request:', error);
-                    alert('Error opening email client. Please email matt@bitsycrm.com directly.');
-                }
-                
-                setSubmitting(false);
-            };
-
-            const handleInputChange = (e) => {
-                setFormData({
-                    ...formData,
-                    [e.target.name]: e.target.value
-                });
-            };
-
-            if (submitted) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center">
-                        <div className="text-center max-w-md">
-                            <div className="text-6xl mb-6">✅</div>
-                            <h2 className="text-3xl font-bold mb-4 text-green-400">Support Request Sent!</h2>
-                            <p className="text-gray-400 mb-6">
-                                Your email client should have opened with your support request. 
-                                If it didn't, please email <strong>matt@bitsycrm.com</strong> directly.
-                            </p>
-                            <p className="text-sm text-gray-500">
-                                We'll get back to you within 24 hours!
-                            </p>
-                        </div>
-                    </div>
-                );
-            }
+            
+            // Real Google Form URL
+            const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScPcLMqTqrqDx2Y4skIkjKFuIqWylZOaqhocIprI6yjeKn-cg/viewform";
+            const GOOGLE_FORM_EMBEDDED = "https://docs.google.com/forms/d/e/1FAIpQLScPcLMqTqrqDx2Y4skIkjKFuIqWylZOaqhocIprI6yjeKn-cg/viewform?embedded=true";
 
             return (
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-6xl mx-auto">
                     <div className="mb-8">
                         <h1 className="heading-font text-4xl font-bold mb-4 flex items-center gap-3">
                             💬 Support Center
@@ -4697,132 +4446,61 @@ Timestamp: ${new Date().toISOString()}
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Contact Form */}
-                        <div className="lg:col-span-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                        {/* Main Form Area */}
+                        <div className="lg:col-span-3">
                             <div className="glass-card p-6">
                                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                                    📧 Contact Form
+                                    📋 Support Request Form
                                 </h2>
                                 
-                                <form onSubmit={handleSubmit} className="space-y-6">
-                                    {/* Name and Email */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Name *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                name="name"
-                                                value={formData.name}
-                                                onChange={handleInputChange}
-                                                className="input-field"
-                                                required
-                                                placeholder="Your name"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Email *
-                                            </label>
-                                            <input
-                                                type="email"
-                                                name="email"
-                                                value={formData.email}
-                                                onChange={handleInputChange}
-                                                className="input-field"
-                                                required
-                                                placeholder="your@email.com"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Category and Priority */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Category *
-                                            </label>
-                                            <select
-                                                name="category"
-                                                value={formData.category}
-                                                onChange={handleInputChange}
-                                                className="input-field"
-                                                required
-                                            >
-                                                <option value="general">General Question</option>
-                                                <option value="bug">Bug Report</option>
-                                                <option value="feature">Feature Request</option>
-                                                <option value="billing">Billing & Account</option>
-                                                <option value="technical">Technical Issue</option>
-                                                <option value="training">Training & How-To</option>
-                                                <option value="integration">Integration Help</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Priority
-                                            </label>
-                                            <select
-                                                name="priority"
-                                                value={formData.priority}
-                                                onChange={handleInputChange}
-                                                className="input-field"
-                                            >
-                                                <option value="low">Low - General inquiry</option>
-                                                <option value="medium">Medium - Normal issue</option>
-                                                <option value="high">High - Business impacting</option>
-                                                <option value="urgent">Urgent - System down</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    {/* Subject */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            Subject *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="subject"
-                                            value={formData.subject}
-                                            onChange={handleInputChange}
-                                            className="input-field"
-                                            required
-                                            placeholder="Brief description of your issue"
-                                        />
-                                    </div>
-
-                                    {/* Message */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            Message *
-                                        </label>
-                                        <textarea
-                                            name="message"
-                                            value={formData.message}
-                                            onChange={handleInputChange}
-                                            rows="6"
-                                            className="input-field"
-                                            required
-                                            placeholder="Please describe your issue in detail. Include steps to reproduce if it's a bug."
-                                        />
-                                    </div>
-
-                                    {/* Submit Button */}
-                                    <button
-                                        type="submit"
-                                        disabled={submitting}
-                                        className="btn-primary w-full flex items-center justify-center gap-2"
+                                {/* User Info Banner */}
+                                <div className="bg-blue-600/20 border border-blue-600 rounded-lg p-4 mb-6">
+                                    <p className="text-blue-400 flex items-center gap-2">
+                                        <span>👤</span>
+                                        <strong>Logged in as:</strong> {user?.email}
+                                    </p>
+                                    <p className="text-blue-300 text-sm mt-1">
+                                        Please include your account email in the form so we can assist you better.
+                                    </p>
+                                </div>
+                                
+                                {/* Embedded Google Form */}
+                                <div className="relative">
+                                    <iframe 
+                                        src={GOOGLE_FORM_EMBEDDED}
+                                        width="100%" 
+                                        height="800" 
+                                        frameBorder="0" 
+                                        marginHeight="0" 
+                                        marginWidth="0"
+                                        className="rounded-lg bg-white"
+                                        title="Bitsy CRM Support Form"
                                     >
-                                        {submitting ? (
-                                            <>⏳ Submitting...</>
-                                        ) : (
-                                            <>📧 Send Support Request</>
-                                        )}
-                                    </button>
-                                </form>
+                                        Loading support form...
+                                    </iframe>
+                                </div>
+                                
+                                <div className="mt-6 p-4 bg-gray-800/50 rounded-lg">
+                                    <h3 className="font-bold mb-2">📧 Alternative Contact Methods:</h3>
+                                    <div className="space-y-2 text-sm text-gray-300">
+                                        <p>
+                                            <strong>Direct Email:</strong>{' '}
+                                            <a href="mailto:matt@bitsycrm.com" className="text-blue-400 hover:text-blue-300">
+                                                matt@bitsycrm.com
+                                            </a>
+                                        </p>
+                                        <p>
+                                            <strong>Can't see the form?</strong>{' '}
+                                            <button 
+                                                onClick={() => window.open(GOOGLE_FORM_URL, '_blank')}
+                                                className="text-blue-400 hover:text-blue-300 underline"
+                                            >
+                                                Open in new window
+                                            </button>
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -4889,6 +4567,22 @@ Timestamp: ${new Date().toISOString()}
                                 <p className="text-sm text-gray-400">
                                     Use the form with "Feature Request" category to suggest improvements.
                                 </p>
+                            </div>
+
+                            {/* Account Info */}
+                            <div className="glass-card p-6">
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    👤 Your Account
+                                </h3>
+                                <div className="space-y-2 text-sm">
+                                    <div>
+                                        <strong>Email:</strong><br/>
+                                        <span className="text-gray-400">{user?.email}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-3">
+                                        Include your account email in support requests for faster assistance.
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
