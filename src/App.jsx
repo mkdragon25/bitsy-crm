@@ -4309,16 +4309,16 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                     {/* Embedded Google Form */}
                                     <div className="relative">
                                         <iframe 
-                                            src={GOOGLE_FORM_EMBEDDED}
+                                            src="https://docs.google.com/forms/d/e/1FAIpQLScPcLMqTqrqDx2Y4skIkjKFuIqWylZOaqhocIprI6yjeKn-cg/viewform?embedded=true" 
                                             width="100%" 
-                                            height="800" 
+                                            height="1807" 
                                             frameBorder="0" 
                                             marginHeight="0" 
                                             marginWidth="0"
                                             className="rounded-lg bg-white"
                                             title="Bitsy CRM Support Form"
                                         >
-                                            Loading support form...
+                                            Loading…
                                         </iframe>
                                     </div>
                                     
@@ -4468,16 +4468,16 @@ const CreateTaskModal = ({ organization, onClose, onSuccess }) => {
                                 {/* Embedded Google Form */}
                                 <div className="relative">
                                     <iframe 
-                                        src={GOOGLE_FORM_EMBEDDED}
+                                        src="https://docs.google.com/forms/d/e/1FAIpQLScPcLMqTqrqDx2Y4skIkjKFuIqWylZOaqhocIprI6yjeKn-cg/viewform?embedded=true" 
                                         width="100%" 
-                                        height="800" 
+                                        height="1807" 
                                         frameBorder="0" 
                                         marginHeight="0" 
                                         marginWidth="0"
                                         className="rounded-lg bg-white"
                                         title="Bitsy CRM Support Form"
                                     >
-                                        Loading support form...
+                                        Loading…
                                     </iframe>
                                 </div>
                                 
